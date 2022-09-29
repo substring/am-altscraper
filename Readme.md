@@ -6,7 +6,7 @@ You can download game info: Title, categories, year, boxs arts (2D and 3D), snap
 At the moment this script only works and tested on GNU/Linux and RetroPie for Raspberry Pi (based on Raspbian).
 
 ## Requisites:
-* Python 2.7
+* Python 3.x
 * python-xmldict
 * python-request
 

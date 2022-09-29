@@ -1,42 +1,43 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #	am-altscraper.py
 #
 #	A alternative scraper game info for Attract Mode using the screenscraper.fr API
-#  
+#
 #  Copyright 2017 Alfonso Saavedra "Son Link" <sonlink.dourden@gmail.com>
-#  
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#  
-#  
+#
+#
 
 import sys, os, hashlib
-from urllib import ContentTooShortError, urlretrieve
 import json, binascii, requests, argparse, collections, glob, xmltodict
-import systems
+import systems, importlib
+from urllib.error import ContentTooShortError
+from urllib.request import urlretrieve
 
-reload(sys)
-sys.setdefaultencoding("utf-8")
+#reload(sys)
+#sys.setdefaultencoding("utf-8")
 
 def CRC32_from_file(filename):
 	buf = open(filename,'rb').read()
 	buf = (binascii.crc32(buf) & 0xFFFFFFFF)
 	return "%08X" % buf
-	
+
 def md5sum(filename):
 	return hashlib.md5(open(filename,'rb').read()).hexdigest()
 
@@ -67,33 +68,33 @@ parser.add_argument("--listfile", help="Use specific gamelist file.")
 args = parser.parse_args()
 
 class Scrapper:
-	
+
 	def __init__(self):
-		
+
 		if not args.system in systems.systems:
 			exit('The system %s is not avaliable' % args.system)
-		
+
 		if not args.lang in langs:
 			exit("The language %s it's not avaliable" % args.lang)
-		
+
 		if not args.region in regions:
 			exit("The region %s it's not supported or avaliable" % args.region)
-		
+
 		for f in folders:
 			if not os.path.exists(args.scraperdir+'/'+args.system+'/'+f):
 				os.makedirs(args.scraperdir+'/'+args.system+'/'+f)
-				
+
 		if os.path.exists(args.scraperdir) and os.path.isdir(args.scraperdir) and os.access(args.scraperdir, os.W_OK):
 			self.systems = systems.systems
 			self.scandir()
 		else:
 			exit("The dir %s don't exists, is not a dir or you don't have permission to write" % args.scraperdir)
-	
+
 	def scandir(self):
 		files = []
 		f = None
 		emuname = None
-		
+
 		if args.listfile:
 			base = os.path.basename(args.listfile)
 			emuname = os.path.splitext(base)[0]
@@ -101,19 +102,19 @@ class Scrapper:
 		else:
 			f = open(args.romlistsdir+'/'+args.system+'.txt', 'w')
 			emuname = args.system
-			
+
 		for e in self.systems[args.system]['exts']:
 			files.extend(glob.glob(args.romsdir+'/*.'+e))
-		
+
 		f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons\n")
 		for rom in sorted(files):
 			print('Getting info for '+rom)
 			base = os.path.basename(rom)
 			name = os.path.splitext(base)[0]
 			data = self.getGameInfo(rom)
-			
+
 			if data:
-				
+
 				f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
 				# Download the snapshot
 				print('Downloading snapshoot')
@@ -134,7 +135,7 @@ class Scrapper:
 			else:
 				f.write('%s;%s;%s;;;;;;;;;;;;;;\n' % (name, name, emuname))
 		f.close()
-		
+
 	def getGameInfo(self, rom):
 		root = None
 		crc = CRC32_from_file(rom)
@@ -153,13 +154,13 @@ class Scrapper:
 			'box3d': None,
 			'wheel': None
 		}
-		
+
 		if root:
 			game = root['Data']['jeu']
-			
+
 			if 'editeur' in game:
 				data['manufacturer'] = game['editeur']
-			
+
 			nom_l = 'nom_' + args.lang
 			if nom_l in game['noms']:
 				data['title'] = game['noms'][nom_l]
@@ -167,7 +168,7 @@ class Scrapper:
 				data['title'] = game['noms']['nom_us']
 			else:
 				data['title'] = game['nom']
-			
+
 			date_l = 'date_'+args.lang
 			if 'dates' in game:
 				if date_l in game['dates']:
@@ -179,7 +180,7 @@ class Scrapper:
 				elif 'date_jp' in game['dates']:
 					year = game['dates']['date_jp'].split('-')[0]
 					data['year'] = year
-			
+
 			if 'genres' in game:
 				if 'genres_'+args.lang in game['genres']:
 					cats = game['genres']['genres_'+args.lang]['genre_'+args.lang]
@@ -187,20 +188,20 @@ class Scrapper:
 						data['cat'] = cats
 					elif type(cats) == list:
 						data['cat'] = cats[0] + ' / '+cats[1]
-			
+
 			if 'joueurs' in game:
 				data['players'] = game['joueurs']
-				
+
 			if 'rotation' in game:
 				data['rotation'] = game['rotation']
-				
+
 			if 'medias' in game:
 				if 'media_screenshot' in game['medias']:
 					data['snap'] = game['medias']['media_screenshot']
-					
+
 				if 'media_video' in game['medias']:
 					data['video'] = game['medias']['media_video']
-					
+
 				if 'media_wheels' in game['medias']:
 					wheels = game['medias']['media_wheels']
 					if 'media_wheel_'+args.region in wheels:
@@ -209,7 +210,7 @@ class Scrapper:
 						data['wheel'] = wheels['media_wheel_us']
 					elif 'media_wheel_jp' in wheels:
 						data['wheel'] = wheels['media_wheel_jp']
-						
+
 				if 'media_boxs' in game['medias']:
 					boxs = game['medias']['media_boxs']
 					if 'media_boxs2d' in boxs:
@@ -219,7 +220,7 @@ class Scrapper:
 							data['box2d'] = boxs['media_boxs2d']['media_box2d_us']
 						elif 'media_box2d_jp' in boxs['media_boxs2d']:
 							data['box2d'] = boxs['media_boxs2d']['media_box2d_jp']
-							
+
 					if 'media_boxs3d' in boxs:
 						if 'media_box3d_'+args.region in boxs['media_boxs3d']:
 							data['box3d'] = boxs['media_boxs3d']['media_box3d_'+args.region]
@@ -227,7 +228,7 @@ class Scrapper:
 							data['box3d'] = boxs['media_boxs3d']['media_box3d_us']
 						elif 'media_box3d_jp' in boxs['media_boxs3d']:
 							data['box3d'] = boxs['media_boxs3d']['media_box3d_jp']
-			
+
 			return(data)
 
 	def getData(self, crc, md5, rom):
@@ -239,7 +240,7 @@ class Scrapper:
 			txt =  r.text
 			if txt.startswith('<?xml version="1.0" encoding="UTF-8" ?>'):
 				root = xmltodict.parse(txt)
-				
+
 			else:
 				print('Trying with MD5sum')
 				url ='http://www.screenscraper.fr/api/jeuInfos.php?devid=son_link&devpassword=link20161231son&softname=multi-scrapper&md5='+md5
@@ -263,14 +264,14 @@ class Scrapper:
 			if txt.startswith('<?xml version="1.0" encoding="UTF-8" ?>'):
 				root = xmltodict.parse(txt)
 			else:
-				root = None	
+				root = None
 		return root
-	
+
 	def download(self, url, dest):
-		try:				
+		try:
 			if not os.path.exists(dest):
 				urlretrieve(url, dest)
-			
+
 		except:
 			print("An error ocurred to download " + dest)
 
@@ -280,14 +281,14 @@ if __name__ == '__main__':
 		for k, v in systems.items():
 			print(k+': '+v['name'])
 		exit()
-		
+
 	if args.langs:
 		for l in sorted(langs):
 			print(l)
 		exit()
-		
+
 	if args.system and args.romsdir:
 		Scrapper()
 	else:
 		parser.print_help()
-	
+
