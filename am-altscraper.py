@@ -120,7 +120,7 @@ class Scrapper:
 				f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
 				# Download the snapshot
 				if data['snap']:
-					print('Downloading snapshoot')
+					print('Downloading snapshot')
 					self.download(data['snap'], '%s/%s/snap/%s.png' % (args.scraperdir, args.system, name))
 				if args.video and data['video']:
 					print('Downloading video')
@@ -140,8 +140,37 @@ class Scrapper:
 
 	def scanTupleForValue(self, ttuple, tkey, tvalue, tfinalKey):
 		for k in ttuple:
-			if k[tkey] == tvalue:
+			if tkey in k and k[tkey] == tvalue:
 				return k[tfinalKey]
+		return None
+
+	def getValueFromTupleRes(self, ttuple, tlang, criteriakey = 'region', valuekey = 'text'):
+		for k in [tlang, 'wor', 'us', 'en', 'jp', 'ss']:
+			val = self.scanTupleForValue(ttuple, criteriakey, k, valuekey)
+			if val:
+				return val
+		return None
+
+	def scanTupleForValueWith2Criteria(self, ttuple, tkey1, tvalue1, tkey2, tvalue2, tfinalKey):
+		for k in ttuple:
+			if tkey1 in k and \
+			   tkey2 in k and \
+			   k[tkey1] == tvalue1 and \
+			   k[tkey2] == tvalue2:
+				return k[tfinalKey]
+		return None
+
+	def getMediaValue(self, ttuple, tlang, mediatype, key):
+		for k in [tlang, 'wor', 'us', 'en', 'jp', 'ss']:
+			val = self.scanTupleForValueWith2Criteria(ttuple, 'type', mediatype, 'region', k, key)
+			if val:
+				return val
+		# Not all media types have a region, so go for a simple check on type=mediatype
+		val = self.scanTupleForValue(ttuple, 'type', mediatype, key)
+		# print(ttuple)
+		if val:
+			return val
+		return None
 
 	def getGameInfo(self, rom):
 		root = None
@@ -163,80 +192,33 @@ class Scrapper:
 		}
 
 		if root:
-			print(root)
-			game = root['Data']['jeu']
+			# print(root)
+			game = root['response']['jeu']
+			# print(game)
 
 			if 'editeur' in game:
-				data['manufacturer'] = game['editeur']
-			print(data)
-			nom_l = 'nom_' + args.lang
-			if nom_l in game['noms']:
-				data['title'] = game['noms'][nom_l]
-			elif 'nom_us' in game['noms']:
-				data['title'] = game['noms']['nom_us']
-			else:
-				data['title'] = game['nom']
-
-			date_l = 'date_'+args.lang
-			if 'dates' in game:
-				if date_l in game['dates']:
-					year = game['dates'][date_l].split('-')[0]
-					data['year'] = year
-				elif 'date_us' in game['dates']:
-					year = game['dates']['date_us'].split('-')[0]
-					data['year'] = year
-				elif 'date_jp' in game['dates']:
-					year = game['dates']['date_jp'].split('-')[0]
-					data['year'] = year
-
+				data['manufacturer'] = game['editeur']['text']
+			if 'noms' in game:
+				data['title'] = self.getValueFromTupleRes(game['noms'], args.lang)
+			if 'year' in game:
+				data['year'] = self.getValueFromTupleRes(game['dates'], args.lang).split('-')[0]
 			if 'genres' in game:
-				if 'genres_'+args.lang in game['genres']:
-					cats = game['genres']['genres_'+args.lang]['genre_'+args.lang]
-					if type(cats) == str:
-						data['cat'] = cats
-					elif type(cats) == list:
-						data['cat'] = cats[0] + ' / '+cats[1]
-
+				data['cat'] = self.getValueFromTupleRes(game['genres'][0]['noms'], args.lang, 'langue')
 			if 'joueurs' in game:
-				data['players'] = game['joueurs']
-
+				data['players'] = game['joueurs']['text']
 			if 'rotation' in game:
 				data['rotation'] = game['rotation']
 
 			if 'medias' in game:
-				if 'media_screenshot' in game['medias']:
-					data['snap'] = game['medias']['media_screenshot']
+				data['snap'] = self.getMediaValue(game['medias'], args.lang, 'ss', 'url')
+				data['video'] = self.getMediaValue(game['medias'], args.lang, 'video-normalized', 'url')
+				if not data['video'] :
+					data['video'] = self.getMediaValue(game['medias'], args.lang, 'video', 'url')
+				data['wheel'] = self.getMediaValue(game['medias'], args.lang, 'wheel', 'url')
+				data['box2d'] = self.getMediaValue(game['medias'], args.lang, 'box-2D', 'url')
+				data['box3d'] = self.getMediaValue(game['medias'], args.lang, 'box-3D', 'url')
 
-				if 'media_video' in game['medias']:
-					data['video'] = game['medias']['media_video']
-
-				if 'media_wheels' in game['medias']:
-					wheels = game['medias']['media_wheels']
-					if 'media_wheel_'+args.region in wheels:
-						data['wheel'] = wheels['media_wheel_'+args.region]
-					elif 'media_wheel_us' in wheels:
-						data['wheel'] = wheels['media_wheel_us']
-					elif 'media_wheel_jp' in wheels:
-						data['wheel'] = wheels['media_wheel_jp']
-
-				if 'media_boxs' in game['medias']:
-					boxs = game['medias']['media_boxs']
-					if 'media_boxs2d' in boxs:
-						if 'media_box2d_'+args.region in boxs['media_boxs2d']:
-							data['box2d'] = boxs['media_boxs2d']['media_box2d_'+args.region]
-						elif 'media_box2d_us' in boxs['media_boxs2d']:
-							data['box2d'] = boxs['media_boxs2d']['media_box2d_us']
-						elif 'media_box2d_jp' in boxs['media_boxs2d']:
-							data['box2d'] = boxs['media_boxs2d']['media_box2d_jp']
-
-					if 'media_boxs3d' in boxs:
-						if 'media_box3d_'+args.region in boxs['media_boxs3d']:
-							data['box3d'] = boxs['media_boxs3d']['media_box3d_'+args.region]
-						elif 'media_box3d_us' in boxs['media_boxs3d']:
-							data['box3d'] = boxs['media_boxs3d']['media_box3d_us']
-						elif 'media_box3d_jp' in boxs['media_boxs3d']:
-							data['box3d'] = boxs['media_boxs3d']['media_box3d_jp']
-
+			# print(data)
 			return(data)
 
 	def getData(self, crc, md5, rom):
@@ -255,10 +237,12 @@ class Scrapper:
 					root = json.loads(r.text)
 					break
 		else:
-			url += '&romnom=' + rom
+			# Force system id to 75 (MAME))
+			url += '&systemeid=75&romnom=' + rom
 			r = requests.get(url)
 			if r.status_code != 404:
 				root = json.loads(r.text)
+		# print(url)
 		return root
 
 	def download(self, url, dest):
