@@ -7,7 +7,6 @@ At the moment this script only works and tested on GNU/Linux and RetroPie for Ra
 
 ## Requisites:
 * Python 3.x
-* python-xmldict
 * python-request
 
 ## Systems supported:
