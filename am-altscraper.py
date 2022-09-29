@@ -25,10 +25,11 @@
 #
 
 import sys, os, hashlib
-import json, binascii, requests, argparse, collections, glob, xmltodict
+import json, binascii, requests, argparse, collections, glob
 import systems, importlib
 from urllib.error import ContentTooShortError
 from urllib.request import urlretrieve
+import json, base64
 
 #reload(sys)
 #sys.setdefaultencoding("utf-8")
@@ -64,6 +65,8 @@ parser.add_argument("--boxs3d", help="Download 3D box art (if avaliable)", actio
 parser.add_argument("--region", help="Set region (eu for Europe, us for U.S.A and jp for Japan) for download some media, like wheels or box art. Default is eu", default='eu')
 parser.add_argument("--scraperdir", help="Set the scraper base dir. Default is ~/.attract/scraper/system/", default=os.environ['HOME']+"/.attract/scraper")
 parser.add_argument("--listfile", help="Use specific gamelist file.")
+parser.add_argument("--user", help="Your screenScraper user.")
+parser.add_argument("--password", help="Your screenScraper password.")
 
 args = parser.parse_args()
 
@@ -114,15 +117,14 @@ class Scrapper:
 			data = self.getGameInfo(rom)
 
 			if data:
-
 				f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
 				# Download the snapshot
-				print('Downloading snapshoot')
 				if data['snap']:
+					print('Downloading snapshoot')
 					self.download(data['snap'], '%s/%s/snap/%s.png' % (args.scraperdir, args.system, name))
 				if args.video and data['video']:
 					print('Downloading video')
-					self.download(data['video'], '%s/%s/snap/%s.mp4' % (args.scraperdir, args.system, name))
+					self.download(data['video'], '%s/%s/video/%s.mp4' % (args.scraperdir, args.system, name))
 				if args.wheels and data['wheel']:
 					print('Downloading wheel')
 					self.download(data['wheel'], '%s/%s/wheel/%s.png' % (args.scraperdir, args.system, name))
@@ -135,6 +137,11 @@ class Scrapper:
 			else:
 				f.write('%s;%s;%s;;;;;;;;;;;;;;\n' % (name, name, emuname))
 		f.close()
+
+	def scanTupleForValue(self, ttuple, tkey, tvalue, tfinalKey):
+		for k in ttuple:
+			if k[tkey] == tvalue:
+				return k[tfinalKey]
 
 	def getGameInfo(self, rom):
 		root = None
@@ -156,11 +163,12 @@ class Scrapper:
 		}
 
 		if root:
+			print(root)
 			game = root['Data']['jeu']
 
 			if 'editeur' in game:
 				data['manufacturer'] = game['editeur']
-
+			print(data)
 			nom_l = 'nom_' + args.lang
 			if nom_l in game['noms']:
 				data['title'] = game['noms'][nom_l]
@@ -233,38 +241,24 @@ class Scrapper:
 
 	def getData(self, crc, md5, rom):
 		root = None
+		url = 'https://www.screenscraper.fr/api2/jeuInfos.php?devid=substring&devpassword=' + base64.b64decode('aE9YdDJXYUJJM2Y=').decode('ascii','strict') + '&softname=GroovyScrape&output=json'
+		if args.user and args.password:
+			url += '&ssid={}&sspassword={}'.format(args.user, args.password)
 		if not args.system in ['arcade', 'mame-libretro', 'mame4all', 'fba']:
-			url ='http://www.screenscraper.fr/api/jeuInfos.php?devid=son_link&devpassword=link20161231son&softname=multi-scrapper&crc='+crc
-			root = ''
-			r = requests.get(url)
-			txt =  r.text
-			if txt.startswith('<?xml version="1.0" encoding="UTF-8" ?>'):
-				root = xmltodict.parse(txt)
-
-			else:
-				print('Trying with MD5sum')
-				url ='http://www.screenscraper.fr/api/jeuInfos.php?devid=son_link&devpassword=link20161231son&softname=multi-scrapper&md5='+md5
-				r = requests.get(url)
-				txt =  r.text
-				if txt.startswith('<?xml version="1.0" encoding="UTF-8" ?>'):
-					root = xmltodict.parse(txt)
-				else:
-					print('Trying with file name')
-					url ='http://www.screenscraper.fr/api/jeuInfos.php?devid=son_link&devpassword=link20161231son&softname=multi-scrapper&romnom='+rom
-					r = requests.get(url)
-					txt =  r.text
-					if txt.startswith('<?xml version="1.0" encoding="UTF-8" ?>'):
-						root = xmltodict.parse(txt)
-					else:
-						root = None
+			for req_type in [ 'crc', 'md5', 'romnom']:
+				if req_type == 'crc': req_val = crc
+				if req_type == 'md5': req_val = md5
+				if req_type == 'romnom': req_val = rom
+				specific_url = url + '&{}={}'.format(req_type, req_val)
+				r = requests.get(specific_url)
+				if r.status_code != 404:
+					root = json.loads(r.text)
+					break
 		else:
-			url ='http://www.screenscraper.fr/api/jeuInfos.php?devid=son_link&devpassword=link20161231son&softname=multi-scrapper&romnom='+rom
+			url += '&romnom=' + rom
 			r = requests.get(url)
-			txt =  r.text
-			if txt.startswith('<?xml version="1.0" encoding="UTF-8" ?>'):
-				root = xmltodict.parse(txt)
-			else:
-				root = None
+			if r.status_code != 404:
+				root = json.loads(r.text)
 		return root
 
 	def download(self, url, dest):
