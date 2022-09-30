@@ -109,6 +109,15 @@ class Scrapper:
 		for e in self.systems[args.system]['exts']:
 			files.extend(glob.glob(args.romsdir+'/*.'+e))
 
+		if not files:
+			print('No roms found')
+			return 1
+
+		for d in ['snap', 'flyer', 'marquee', 'video', 'wheel']:
+			path =  '%s/%s/%s' % (args.scraperdir, args.system, d)
+			if not os.path.isdir(path):
+				print('Creating dir ' + path)
+				os.mkdir(path)
 		f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons\n")
 		for rom in sorted(files):
 			print('Getting info for '+rom)
@@ -226,7 +235,7 @@ class Scrapper:
 		url = 'https://www.screenscraper.fr/api2/jeuInfos.php?devid=substring&devpassword=' + base64.b64decode('aE9YdDJXYUJJM2Y=').decode('ascii','strict') + '&softname=GroovyScrape&output=json'
 		if args.user and args.password:
 			url += '&ssid={}&sspassword={}'.format(args.user, args.password)
-		if not args.system in ['arcade', 'mame-libretro', 'mame4all', 'fba']:
+		if not args.system in ['mame', 'arcade', 'mame-libretro', 'mame4all', 'fba']:
 			for req_type in [ 'crc', 'md5', 'romnom']:
 				if req_type == 'crc': req_val = crc
 				if req_type == 'md5': req_val = md5
@@ -237,7 +246,7 @@ class Scrapper:
 					root = json.loads(r.text)
 					break
 		else:
-			# Force system id to 75 (MAME))
+			# Force system id to 75 (MAME)
 			url += '&systemeid=75&romnom=' + rom
 			r = requests.get(url)
 			if r.status_code != 404:

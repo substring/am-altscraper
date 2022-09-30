@@ -18,6 +18,7 @@ systems['gbc'] = {'name': 'Game Boy Color', 'exts': ['gbc']}
 systems['gba'] = {'name': 'Game Boy Advance', 'exts': ['gba']}
 systems['mame-libretro'] = {'name': 'RetroArch MAME core', 'exts': ['zip']}
 systems['mame-mame4all'] = {'name': 'MAME 4 All', 'exts': ['zip']}
+systems['mame'] = {'name': 'MAME', 'exts': ['zip']}
 systems['fba'] = {'name': 'Final Burn Alpha', 'exts': ['zip']}
 systems['arcade'] = {'name': 'Arcade systems (MAME, FBA, Neo Geo)', 'exts': ['zip']}
 systems['pcengine'] = {'name': 'PC-Engine/TurboGrafx-16', 'exts': ['pce', 'cue', 'zip']}
