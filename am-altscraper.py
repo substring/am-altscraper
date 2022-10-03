@@ -49,7 +49,7 @@ langs = {
 	'de': 'de'
 }
 regions = ['eu', 'us', 'jp']
-folders = ['snap', 'wheel', 'flyer']
+folders = ['snap', 'wheel', 'flyer', 'video', 'marquee']
 
 parser = argparse.ArgumentParser(epilog='--system and --romsdir are mandatory')
 parser.add_argument("--system", help="System name")
@@ -62,6 +62,7 @@ parser.add_argument("--video", help="Download video (if avaliable)", action='sto
 parser.add_argument("--wheels", help="Download video (if avaliable)", action='store_true')
 parser.add_argument("--boxs2d", help="Download box art (if avaliable)", action='store_true')
 parser.add_argument("--boxs3d", help="Download 3D box art (if avaliable)", action='store_true')
+parser.add_argument("--marquee", help="Download marquee (if avaliable)", action='store_true')
 parser.add_argument("--region", help="Set region (eu for Europe, us for U.S.A and jp for Japan) for download some media, like wheels or box art. Default is eu", default='eu')
 parser.add_argument("--scraperdir", help="Set the scraper base dir. Default is ~/.attract/scraper/system/", default=os.environ['HOME']+"/.attract/scraper")
 parser.add_argument("--listfile", help="Use specific gamelist file.")
@@ -84,14 +85,16 @@ class Scrapper:
 			exit("The region %s it's not supported or avaliable" % args.region)
 
 		for f in folders:
-			if not os.path.exists(args.scraperdir+'/'+args.system+'/'+f):
-				os.makedirs(args.scraperdir+'/'+args.system+'/'+f)
+			pathdir = args.scraperdir+'/'+args.system+'/'+f
+			if not os.path.exists(pathdir):
+				print('Creating dir ' + pathdir)
+				os.makedirs(pathdir)
 
 		if os.path.exists(args.scraperdir) and os.path.isdir(args.scraperdir) and os.access(args.scraperdir, os.W_OK):
 			self.systems = systems.systems
 			self.scandir()
 		else:
-			exit("The dir %s don't exists, is not a dir or you don't have permission to write" % args.scraperdir)
+			exit("The dir %s doesn't exists, is not a dir or you don't have permission to write" % args.scraperdir)
 
 	def scandir(self):
 		files = []
@@ -113,11 +116,6 @@ class Scrapper:
 			print('No roms found')
 			return 1
 
-		for d in ['snap', 'flyer', 'marquee', 'video', 'wheel']:
-			path =  '%s/%s/%s' % (args.scraperdir, args.system, d)
-			if not os.path.isdir(path):
-				print('Creating dir ' + path)
-				os.mkdir(path)
 		f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons\n")
 		for rom in sorted(files):
 			print('Getting info for '+rom)
@@ -143,6 +141,9 @@ class Scrapper:
 				if args.boxs3d and data['box3d']:
 					print('Downloading 3D box')
 					self.download(data['box3d'], '%s/%s/flyer/%s_3d.png' % (args.scraperdir, args.system, name))
+				if args.marquee and data['marquee']:
+					print('Downloading marquee')
+					self.download(data['marquee'], '%s/%s/marquee/%s.png' % (args.scraperdir, args.system, name))
 			else:
 				f.write('%s;%s;%s;;;;;;;;;;;;;;\n' % (name, name, emuname))
 		f.close()
@@ -226,6 +227,12 @@ class Scrapper:
 				data['wheel'] = self.getMediaValue(game['medias'], args.lang, 'wheel', 'url')
 				data['box2d'] = self.getMediaValue(game['medias'], args.lang, 'box-2D', 'url')
 				data['box3d'] = self.getMediaValue(game['medias'], args.lang, 'box-3D', 'url')
+				data['marquee'] = self.getMediaValue(game['medias'], args.lang, 'marquee', 'url')
+				if not data['marquee'] :
+					data['marquee'] = self.getMediaValue(game['medias'], args.lang, 'screenmarquee', 'url')
+				if not data['marquee'] :
+					data['marquee'] = self.getMediaValue(game['medias'], args.lang, 'screenmarqueesmall', 'url')
+				data['wheel'] = self.getMediaValue(game['medias'], args.lang, 'wheel', 'url')
 
 			# print(data)
 			return(data)
