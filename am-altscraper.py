@@ -30,6 +30,7 @@ import systems, importlib
 from urllib.error import ContentTooShortError
 from urllib.request import urlretrieve
 import json, base64
+import subprocess
 
 #reload(sys)
 #sys.setdefaultencoding("utf-8")
@@ -68,14 +69,17 @@ parser.add_argument("--scraperdir", help="Set the scraper base dir. Default is ~
 parser.add_argument("--listfile", help="Use specific gamelist file.")
 parser.add_argument("--user", help="Your screenScraper user.")
 parser.add_argument("--password", help="Your screenScraper password.")
+parser.add_argument("--emulator", help="An AttractMode emulator configuration file")
 
 args = parser.parse_args()
 
 class Scrapper:
 
 	def __init__(self):
+		if args.emulator:
+			self.emcfg_data = self.readEmulatorConfig(args.emulator)
 
-		if not args.system in systems.systems:
+		if not args.emulator and not args.system in systems.systems:
 			exit('The system %s is not avaliable' % args.system)
 
 		if not args.lang in langs:
@@ -84,17 +88,85 @@ class Scrapper:
 		if not args.region in regions:
 			exit("The region %s it's not supported or avaliable" % args.region)
 
+		if self.emcfg_data:
+			self.system = self.emcfg_data['system']
+			self.romsdir = self.emcfg_data['rompath']
+			# This one is a very dangerous assumption, where all media folders are in the same subfolder
+			artwork_path = []
+			if self.emcfg_data['artwork']:
+				for p, v in self.emcfg_data['artwork'].items():
+					artwork_path.extend(v)
+			print(artwork_path)
+			self.scraperdir = os.path.dirname(os.path.commonpath(artwork_path))
+			if os.path.basename(self.scraperdir) == self.system:
+				self.scraperdir = self.scraperdir[0:len(self.scraperdir) - len(self.system)]
+			print(self.scraperdir)
+		else:
+			self.system = args.system
+			self.romsdir = args.romsdir
+			self.scraperdir = args.scraperdir
 		for f in folders:
-			pathdir = args.scraperdir+'/'+args.system+'/'+f
+			pathdir = self.scraperdir+'/'+self.system+'/'+f
 			if not os.path.exists(pathdir):
 				print('Creating dir ' + pathdir)
 				os.makedirs(pathdir)
 
-		if os.path.exists(args.scraperdir) and os.path.isdir(args.scraperdir) and os.access(args.scraperdir, os.W_OK):
+		if os.path.exists(self.scraperdir) and os.path.isdir(self.scraperdir) and os.access(self.scraperdir, os.W_OK):
 			self.systems = systems.systems
 			self.scandir()
 		else:
-			exit("The dir %s doesn't exists, is not a dir or you don't have permission to write" % args.scraperdir)
+			exit("The dir %s doesn't exists, is not a dir or you don't have permission to write" % self.scraperdir)
+
+	def interpretShellVariables(self, varname):
+		CMD = 'echo "%s"' % varname
+		p = subprocess.Popen(CMD, stdout=subprocess.PIPE, shell=True, executable='/bin/bash')
+		value = p.stdout.readlines()[0].strip().decode()
+		return value
+
+	def splitParamFromValue(self, line):
+		i = 0
+		while i < len(line):
+			if line[i] == ' ':
+				break
+			i += 1
+		param = line[0:i]
+		i += 1
+		while i < len(line):
+			if line[i] != ' ':
+				break
+			i += 1
+		value = line[i: len(line)]
+		return [param, value]
+
+	def readEmulatorConfig(self, emcfgfile):
+		emcfg_data = dict()
+		if not os.path.isfile(emcfgfile) :
+			exit("The emulator configuration file %s doesn't exist' % emcfgfile")
+		with open(emcfgfile) as f:
+			lines = [line.rstrip() for line in f]
+		for l in lines:
+			for p in ['system', 'rompath', 'romext', 'artwork']:
+				if l[0: len(p)] != p:
+					continue
+				i = len(p)
+				while i < len(l):
+					if l[i] != ' ':
+						break
+					i += 1
+				value = self.interpretShellVariables(l[i: len(l)])
+				if p == 'artwork':
+					if p not in emcfg_data:
+						emcfg_data[p] = dict()
+					artparam, artvalue = self.splitParamFromValue(value)
+					emcfg_data[p][artparam] = artvalue.split(';')
+				elif p == 'romext':
+					emcfg_data[p] = [ v[1:len(v)] for v in  value.split(';') ]
+				elif p == 'system':
+					emcfg_data[p] = value
+				else:
+					emcfg_data[p] =  value.split(';')
+		print(emcfg_data)
+		return emcfg_data
 
 	def scandir(self):
 		files = []
@@ -106,11 +178,19 @@ class Scrapper:
 			emuname = os.path.splitext(base)[0]
 			f = open(args.listfile, 'w')
 		else:
-			f = open(args.romlistsdir+'/'+args.system+'.txt', 'w')
 			emuname = args.system
+			f = open(args.romlistsdir+'/'+self.system+'.txt', 'w')
 
-		for e in self.systems[args.system]['exts']:
-			files.extend(glob.glob(args.romsdir+'/*.'+e))
+		if args.emulator:
+			exts_list = self.emcfg_data['romext']
+			#print(self.emcfg_data['rompath'])
+			for r in self.emcfg_data['rompath']:
+				for e in exts_list:
+					files.extend(glob.glob(r + '/*.' + e))
+		else:
+			exts_list = self.systems[args.system]['exts']
+			for e in exts_list:
+				files.extend(glob.glob(args.romsdir+'/*.'+e))
 
 		if not files:
 			print('No roms found')
@@ -128,22 +208,22 @@ class Scrapper:
 				# Download the snapshot
 				if data['snap']:
 					print('Downloading snapshot')
-					self.download(data['snap'], '%s/%s/snap/%s.png' % (args.scraperdir, args.system, name))
+					self.download(data['snap'], '%s/%s/snap/%s.png' % (self.scraperdir, self.system, name))
 				if args.video and data['video']:
 					print('Downloading video')
-					self.download(data['video'], '%s/%s/video/%s.mp4' % (args.scraperdir, args.system, name))
+					self.download(data['video'], '%s/%s/video/%s.mp4' % (self.scraperdir, self.system, name))
 				if args.wheels and data['wheel']:
 					print('Downloading wheel')
-					self.download(data['wheel'], '%s/%s/wheel/%s.png' % (args.scraperdir, args.system, name))
+					self.download(data['wheel'], '%s/%s/wheel/%s.png' % (self.scraperdir, self.system, name))
 				if args.boxs2d and data['box2d']:
 					print('Downloading 2D box')
-					self.download(data['box2d'], '%s/%s/flyer/%s.png' % (args.scraperdir, args.system, name))
+					self.download(data['box2d'], '%s/%s/flyer/%s.png' % (self.scraperdir, self.system, name))
 				if args.boxs3d and data['box3d']:
 					print('Downloading 3D box')
-					self.download(data['box3d'], '%s/%s/flyer/%s_3d.png' % (args.scraperdir, args.system, name))
+					self.download(data['box3d'], '%s/%s/flyer/%s_3d.png' % (self.scraperdir, self.system, name))
 				if args.marquee and data['marquee']:
 					print('Downloading marquee')
-					self.download(data['marquee'], '%s/%s/marquee/%s.png' % (args.scraperdir, args.system, name))
+					self.download(data['marquee'], '%s/%s/marquee/%s.png' % (self.scraperdir, self.system, name))
 			else:
 				f.write('%s;%s;%s;;;;;;;;;;;;;;\n' % (name, name, emuname))
 		f.close()
@@ -184,8 +264,10 @@ class Scrapper:
 
 	def getGameInfo(self, rom):
 		root = None
-		crc = CRC32_from_file(rom)
+		crc = CRC32_from_file(rom) # Oh God please no. If it's a zip, this is useless
 		md5 = md5sum(rom)
+		print('rom CRC: %s' % crc)
+		print('rom md5: %s' % md5)
 		root = self.getData(crc, md5, os.path.basename(rom))
 		data = {
 			'title': '',
@@ -240,6 +322,7 @@ class Scrapper:
 	def getData(self, crc, md5, rom):
 		root = None
 		url = 'https://www.screenscraper.fr/api2/jeuInfos.php?devid=substring&devpassword=' + base64.b64decode('aE9YdDJXYUJJM2Y=').decode('ascii','strict') + '&softname=GroovyScrape&output=json'
+		print(url)
 		if args.user and args.password:
 			url += '&ssid={}&sspassword={}'.format(args.user, args.password)
 		if not args.system in ['mame', 'arcade', 'mame-libretro', 'mame4all', 'fba']:
@@ -248,10 +331,13 @@ class Scrapper:
 				if req_type == 'md5': req_val = md5
 				if req_type == 'romnom': req_val = rom
 				specific_url = url + '&{}={}'.format(req_type, req_val)
+				print(specific_url)
 				r = requests.get(specific_url)
-				if r.status_code != 404:
+				if r.status_code == 200:
 					root = json.loads(r.text)
 					break
+				else:
+					print('URL returned status code ' + str(r.status_code))
 		else:
 			# Force system id to 75 (MAME)
 			url += '&systemeid=75&romnom=' + rom
@@ -281,7 +367,7 @@ if __name__ == '__main__':
 			print(l)
 		exit()
 
-	if args.system and args.romsdir:
+	if args.emulator or (args.system and args.romsdir):
 		Scrapper()
 	else:
 		parser.print_help()
