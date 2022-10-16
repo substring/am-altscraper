@@ -32,6 +32,7 @@ from urllib.request import urlretrieve
 import json, base64
 import subprocess
 import zipfile
+import py7zr
 
 #reload(sys)
 #sys.setdefaultencoding("utf-8")
@@ -266,8 +267,12 @@ class Scrapper:
 
 	def getGameInfo(self, rom):
 		root = None
-		if os.path.splitext(rom)[1] == '.zip':
+		romext = os.path.splitext(rom)[1]
+		if romext == '.zip':
+			print('Checking .zip CRC')
 			crc = self.getCRCFromZip(rom)
+		elif romext == '.7z':
+			crc = self.getCRCFrom7z(rom)
 		else:
 			crc = CRC32_from_file(rom) # Oh God please no. If it's a zip, this is useless
 		md5 = md5sum(rom)
@@ -370,6 +375,14 @@ class Scrapper:
 			# Return the HEX value of the CRC, as getinfo returns a decimal value
 			return f'{decimalCRC:x}'
 
+	def getCRCFrom7z(self, romfile):
+		with py7zr.SevenZipFile(romfile, 'r') as romzip:
+			zipinfodata = romzip.list()
+			if len(zipinfodata) > 1:
+				return None
+			decimalCRC = zipinfodata[0].crc32
+			# Return the HEX value of the CRC, as getinfo returns a decimal value
+			return f'{decimalCRC:x}'
 
 if __name__ == '__main__':
 	if args.systems:
