@@ -92,6 +92,7 @@ class Scrapper:
 		if self.emcfg_data:
 			self.system = self.emcfg_data['system']
 			self.romsdir = self.emcfg_data['rompath']
+			self.longsystem = os.path.splitext(os.path.basename(args.emulator))[0]
 			# This one is a very dangerous assumption, where all media folders are in the same subfolder
 			artwork_path = []
 			if self.emcfg_data['artwork']:
@@ -103,7 +104,7 @@ class Scrapper:
 				self.scraperdir = self.scraperdir[0:len(self.scraperdir) - len(self.system)]
 			print(self.scraperdir)
 		else:
-			self.system = args.system
+			self.longsystem = self.system = args.system
 			self.romsdir = args.romsdir
 			self.scraperdir = args.scraperdir
 		for f in folders:
@@ -180,7 +181,7 @@ class Scrapper:
 			f = open(args.listfile, 'w')
 		else:
 			emuname = args.system
-			f = open(args.romlistsdir+'/'+self.system+'.txt', 'w')
+			f = open(args.romlistsdir+'/'+self.longsystem+'.txt', 'w')
 
 		if args.emulator:
 			exts_list = self.emcfg_data['romext']
