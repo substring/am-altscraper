@@ -31,6 +31,7 @@ from urllib.error import ContentTooShortError
 from urllib.request import urlretrieve
 import json, base64
 import subprocess
+import zipfile
 
 #reload(sys)
 #sys.setdefaultencoding("utf-8")
@@ -264,7 +265,10 @@ class Scrapper:
 
 	def getGameInfo(self, rom):
 		root = None
-		crc = CRC32_from_file(rom) # Oh God please no. If it's a zip, this is useless
+		if os.path.splitext(rom)[1] == '.zip':
+			crc = self.getCRCFromZip(rom)
+		else:
+			crc = CRC32_from_file(rom) # Oh God please no. If it's a zip, this is useless
 		md5 = md5sum(rom)
 		print('rom CRC: %s' % crc)
 		print('rom md5: %s' % md5)
@@ -322,7 +326,7 @@ class Scrapper:
 	def getData(self, crc, md5, rom):
 		root = None
 		url = 'https://www.screenscraper.fr/api2/jeuInfos.php?devid=substring&devpassword=' + base64.b64decode('aE9YdDJXYUJJM2Y=').decode('ascii','strict') + '&softname=GroovyScrape&output=json'
-		print(url)
+		# print(url)
 		if args.user and args.password:
 			url += '&ssid={}&sspassword={}'.format(args.user, args.password)
 		if not args.system in ['mame', 'arcade', 'mame-libretro', 'mame4all', 'fba']:
@@ -331,7 +335,7 @@ class Scrapper:
 				if req_type == 'md5': req_val = md5
 				if req_type == 'romnom': req_val = rom
 				specific_url = url + '&{}={}'.format(req_type, req_val)
-				print(specific_url)
+				# print(specific_url)
 				r = requests.get(specific_url)
 				if r.status_code == 200:
 					root = json.loads(r.text)
@@ -354,6 +358,17 @@ class Scrapper:
 
 		except:
 			print("An error ocurred to download " + dest)
+
+	def getCRCFromZip(self, romfile):
+		with zipfile.ZipFile(romfile) as romzip:
+			zipinfodata = romzip.infolist()
+			# We need only one file in the archive, useless otherwise
+			if len(zipinfodata) > 1:
+				return None
+			decimalCRC = romzip.getinfo(zipinfodata[0].filename).CRC
+			# Return the HEX value of the CRC, as getinfo returns a decimal value
+			return f'{decimalCRC:x}'
+
 
 if __name__ == '__main__':
 	if args.systems:
