@@ -27,8 +27,6 @@
 import sys, os, hashlib
 import json, binascii, requests, argparse, collections, glob
 import systems, importlib
-# from urllib.error import ContentTooShortError
-# from urllib.request import urlretrieve
 import requests
 import json, base64
 import subprocess
@@ -109,22 +107,29 @@ class Scrapper:
 			self.scraperdir = os.path.dirname(os.path.commonpath(artwork_path))
 			if os.path.basename(self.scraperdir) == self.system:
 				self.scraperdir = self.scraperdir[0:len(self.scraperdir) - len(self.system)]
-			logging.debug('Scraped data main dir: %s' % self.scraperdir)
+			self.exts = self.emcfg_data['romext']
 		else:
 			self.longsystem = self.system = args.system
-			self.romsdir = args.romsdir
+			self.romsdir = [ args.romsdir ]
 			self.scraperdir = args.scraperdir
+			self.exts = self.systems[args.system]['exts']
 		for f in folders:
 			pathdir = self.scraperdir+'/'+self.system+'/'+f
 			if not os.path.exists(pathdir):
 				logging.info('Creating dir ' + pathdir)
 				os.makedirs(pathdir)
 
+		logging.info('System: %s' % self.system)
+		logging.info('Roms path: %s' % ' '.join(self.romsdir))
+		logging.info('Roms extensions: %s' % ' '.join(self.exts))
+		logging.info('Emulator.cfg name: %s' % self.longsystem)
+		logging.info('Scraped data main dir: %s' % self.scraperdir)
 		if os.path.exists(self.scraperdir) and os.path.isdir(self.scraperdir) and os.access(self.scraperdir, os.W_OK):
 			self.systems = systems.systems
 			self.scandir()
 		else:
-			exit("The dir %s doesn't exists, is not a dir or you don't have permission to write" % self.scraperdir)
+			logging.critical("The dir %s doesn't exists, is not a dir or you don't have permission to write" % self.scraperdir)
+			exit()
 
 	def interpretShellVariables(self, varname):
 		CMD = 'echo "%s"' % varname
@@ -187,23 +192,17 @@ class Scrapper:
 			emuname = os.path.splitext(base)[0]
 			f = open(args.listfile, 'w')
 		else:
-			emuname = args.system
+			emuname = self.longsystem
 			f = open(args.romlistsdir+'/'+self.longsystem+'.txt', 'w')
 
-		if args.emulator:
-			exts_list = self.emcfg_data['romext']
-			for r in self.emcfg_data['rompath']:
-				for e in exts_list:
-					files.extend(glob.glob(r + '/*.' + e))
-		else:
-			exts_list = self.systems[args.system]['exts']
-			for e in exts_list:
-				files.extend(glob.glob(args.romsdir+'/*.'+e))
-		logging.info('Roms extensions: %s' % ' '.join(exts_list))
+		for r in self.romsdir:
+			for e in self.exts:
+				files.extend(glob.glob(r + '/*.' + e))
 		if not files:
 			logging.critical('No roms found')
 			return 1
 
+		logging.info('Found %d roms' % len(files))
 		f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons\n")
 		for rom in sorted(files):
 			logging.info('Getting info for '+rom)
@@ -359,9 +358,14 @@ class Scrapper:
 		return root
 
 	def download(self, url, dest):
+		logging.debug('About to download "%s"' % dest)
 		try:
 			if not os.path.exists(dest):
-				urlretrieve(url, dest)
+				r = requests.get(url)
+				with open(dest,'wb') as f:
+					f.write(r.content)
+			else:
+				logging.debug("+-- File already exists, skipping download")
 
 		except:
 			logging.error("An error ocurred to download " + dest)
