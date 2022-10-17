@@ -27,8 +27,9 @@
 import sys, os, hashlib
 import json, binascii, requests, argparse, collections, glob
 import systems, importlib
-from urllib.error import ContentTooShortError
-from urllib.request import urlretrieve
+# from urllib.error import ContentTooShortError
+# from urllib.request import urlretrieve
+import requests
 import json, base64
 import subprocess
 import zipfile
@@ -54,6 +55,11 @@ langs = {
 }
 regions = ['eu', 'us', 'jp']
 folders = ['snap', 'wheel', 'flyer', 'video', 'marquee']
+LOGGING_LEVELS = [
+    logging.INFO,
+    logging.DEBUG,
+    logging.NOTSET
+]
 
 parser = argparse.ArgumentParser(epilog="--system and --romsdir are mandatory if you don't use --emulator")
 parser.add_argument("-s", "--system", help="System name")
@@ -73,7 +79,7 @@ parser.add_argument("--listfile", help="Use specific gamelist file.")
 parser.add_argument("-u", "--user", help="Your screenScraper user.")
 parser.add_argument("-p", "--password", help="Your screenScraper password.")
 parser.add_argument("-e", "--emulator", help="An AttractMode emulator configuration file")
-
+parser.add_argument('-v', '--verbose', action='count', default=0, help='Verbose mode. Use multiple times for info/debug (-vv)')
 args = parser.parse_args()
 
 class Scrapper:
@@ -100,11 +106,10 @@ class Scrapper:
 			if self.emcfg_data['artwork']:
 				for p, v in self.emcfg_data['artwork'].items():
 					artwork_path.extend(v)
-			print(artwork_path)
 			self.scraperdir = os.path.dirname(os.path.commonpath(artwork_path))
 			if os.path.basename(self.scraperdir) == self.system:
 				self.scraperdir = self.scraperdir[0:len(self.scraperdir) - len(self.system)]
-			print(self.scraperdir)
+			logging.debug('Scraped data main dir: %s' % self.scraperdir)
 		else:
 			self.longsystem = self.system = args.system
 			self.romsdir = args.romsdir
@@ -112,7 +117,7 @@ class Scrapper:
 		for f in folders:
 			pathdir = self.scraperdir+'/'+self.system+'/'+f
 			if not os.path.exists(pathdir):
-				print('Creating dir ' + pathdir)
+				logging.info('Creating dir ' + pathdir)
 				os.makedirs(pathdir)
 
 		if os.path.exists(self.scraperdir) and os.path.isdir(self.scraperdir) and os.access(self.scraperdir, os.W_OK):
@@ -169,7 +174,7 @@ class Scrapper:
 					emcfg_data[p] = value
 				else:
 					emcfg_data[p] =  value.split(';')
-		print(emcfg_data)
+		logging.debug('Data read from the emulator .cfg: {}'.format(emcfg_data))
 		return emcfg_data
 
 	def scandir(self):
@@ -187,7 +192,6 @@ class Scrapper:
 
 		if args.emulator:
 			exts_list = self.emcfg_data['romext']
-			#print(self.emcfg_data['rompath'])
 			for r in self.emcfg_data['rompath']:
 				for e in exts_list:
 					files.extend(glob.glob(r + '/*.' + e))
@@ -195,14 +199,14 @@ class Scrapper:
 			exts_list = self.systems[args.system]['exts']
 			for e in exts_list:
 				files.extend(glob.glob(args.romsdir+'/*.'+e))
-
+		logging.info('Roms extensions: %s' % ' '.join(exts_list))
 		if not files:
-			print('No roms found')
+			logging.critical('No roms found')
 			return 1
 
 		f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons\n")
 		for rom in sorted(files):
-			print('Getting info for '+rom)
+			logging.info('Getting info for '+rom)
 			base = os.path.basename(rom)
 			name = os.path.splitext(base)[0]
 			data = self.getGameInfo(rom)
@@ -211,22 +215,22 @@ class Scrapper:
 				f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
 				# Download the snapshot
 				if data['snap']:
-					print('Downloading snapshot')
+					logging.info('Downloading snapshot')
 					self.download(data['snap'], '%s/%s/snap/%s.png' % (self.scraperdir, self.system, name))
 				if args.video and data['video']:
-					print('Downloading video')
+					logging.info('Downloading video')
 					self.download(data['video'], '%s/%s/video/%s.mp4' % (self.scraperdir, self.system, name))
 				if args.wheels and data['wheel']:
-					print('Downloading wheel')
+					logging.info('Downloading wheel')
 					self.download(data['wheel'], '%s/%s/wheel/%s.png' % (self.scraperdir, self.system, name))
 				if args.boxs2d and data['box2d']:
-					print('Downloading 2D box')
+					logging.info('Downloading 2D box')
 					self.download(data['box2d'], '%s/%s/flyer/%s.png' % (self.scraperdir, self.system, name))
 				if args.boxs3d and data['box3d']:
-					print('Downloading 3D box')
+					logging.info('Downloading 3D box')
 					self.download(data['box3d'], '%s/%s/flyer/%s_3d.png' % (self.scraperdir, self.system, name))
 				if args.marquee and data['marquee']:
-					print('Downloading marquee')
+					logging.info('Downloading marquee')
 					self.download(data['marquee'], '%s/%s/marquee/%s.png' % (self.scraperdir, self.system, name))
 			else:
 				f.write('%s;%s;%s;;;;;;;;;;;;;;\n' % (name, name, emuname))
@@ -261,7 +265,6 @@ class Scrapper:
 				return val
 		# Not all media types have a region, so go for a simple check on type=mediatype
 		val = self.scanTupleForValue(ttuple, 'type', mediatype, key)
-		# print(ttuple)
 		if val:
 			return val
 		return None
@@ -270,15 +273,16 @@ class Scrapper:
 		root = None
 		romext = os.path.splitext(rom)[1]
 		if romext == '.zip':
-			print('Checking .zip CRC')
+			logging.debug('Checking .zip CRC')
 			crc = self.getCRCFromZip(rom)
 		elif romext == '.7z':
+			logging.debug('Checking .7z CRC')
 			crc = self.getCRCFrom7z(rom)
 		else:
-			crc = CRC32_from_file(rom) # Oh God please no. If it's a zip, this is useless
-		md5 = md5sum(rom)
-		print('rom CRC: %s' % crc)
-		print('rom md5: %s' % md5)
+			crc = CRC32_from_file(rom) # We shouldn't even be doing that
+		md5 = md5sum(rom) # Not better than hashing an archive ...
+		logging.debug('rom CRC: %s' % crc)
+		logging.debug('rom md5: %s' % md5)
 		root = self.getData(crc, md5, os.path.basename(rom))
 		data = {
 			'title': '',
@@ -295,9 +299,9 @@ class Scrapper:
 		}
 
 		if root:
-			# print(root)
+			# logging.debug(root)
 			game = root['response']['jeu']
-			# print(game)
+			# logging.debug(game)
 
 			if 'editeur' in game:
 				data['manufacturer'] = game['editeur']['text']
@@ -327,13 +331,11 @@ class Scrapper:
 					data['marquee'] = self.getMediaValue(game['medias'], args.lang, 'screenmarqueesmall', 'url')
 				data['wheel'] = self.getMediaValue(game['medias'], args.lang, 'wheel', 'url')
 
-			# print(data)
 			return(data)
 
 	def getData(self, crc, md5, rom):
 		root = None
 		url = 'https://www.screenscraper.fr/api2/jeuInfos.php?devid=substring&devpassword=' + base64.b64decode('aE9YdDJXYUJJM2Y=').decode('ascii','strict') + '&softname=GroovyScrape&output=json'
-		# print(url)
 		if args.user and args.password:
 			url += '&ssid={}&sspassword={}'.format(args.user, args.password)
 		if not args.system in ['mame', 'arcade', 'mame-libretro', 'mame4all', 'fba']:
@@ -342,20 +344,18 @@ class Scrapper:
 				if req_type == 'md5': req_val = md5
 				if req_type == 'romnom': req_val = rom
 				specific_url = url + '&{}={}'.format(req_type, req_val)
-				# print(specific_url)
 				r = requests.get(specific_url)
 				if r.status_code == 200:
 					root = json.loads(r.text)
 					break
 				else:
-					print('URL returned status code ' + str(r.status_code))
+					logging.error('URL returned status code ' + str(r.status_code))
 		else:
-			# Force system id to 75 (MAME)
+			# Force system id to 75 (MAME/arcade)
 			url += '&systemeid=75&romnom=' + rom
 			r = requests.get(url)
-			if r.status_code != 404:
+			if r.status_code ==200:
 				root = json.loads(r.text)
-		# print(url)
 		return root
 
 	def download(self, url, dest):
@@ -364,7 +364,7 @@ class Scrapper:
 				urlretrieve(url, dest)
 
 		except:
-			print("An error ocurred to download " + dest)
+			logging.error("An error ocurred to download " + dest)
 
 	def getCRCFromZip(self, romfile):
 		with zipfile.ZipFile(romfile) as romzip:
@@ -396,6 +396,17 @@ if __name__ == '__main__':
 		for l in sorted(langs):
 			print(l)
 		exit()
+
+	loggingLevel = logging.NOTSET
+	# Set log level according to wanted verbosity
+	loggingLevel = LOGGING_LEVELS[args.verbose -1]
+	if loggingLevel == logging.INFO or loggingLevel == logging.WARN:
+		logging.basicConfig(format='[%(levelname)s]: %(message)s', level=loggingLevel)
+	elif loggingLevel == logging.DEBUG:
+		logging.basicConfig(stream=sys.stdout, level=loggingLevel, datefmt='%Y-%m-%d %H:%M:%S',
+			format='%(asctime)s %(levelname)s %(filename)s/%(funcName)s(%(lineno)d): %(message)s')
+	# We don't want the full URLs to be printed'
+	logging.getLogger("urllib3").setLevel(logging.INFO) # requests is built on urllib3
 
 	if args.emulator or (args.system and args.romsdir):
 		Scrapper()
