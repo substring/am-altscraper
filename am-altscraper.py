@@ -33,6 +33,7 @@ import json, base64
 import subprocess
 import zipfile
 import py7zr
+import logging
 
 #reload(sys)
 #sys.setdefaultencoding("utf-8")
@@ -54,10 +55,10 @@ langs = {
 regions = ['eu', 'us', 'jp']
 folders = ['snap', 'wheel', 'flyer', 'video', 'marquee']
 
-parser = argparse.ArgumentParser(epilog='--system and --romsdir are mandatory')
-parser.add_argument("--system", help="System name")
-parser.add_argument("--systems", help="Print avaliable systems", action='store_true')
-parser.add_argument("--lang", help="Lang for retrieve game info", default='en')
+parser = argparse.ArgumentParser(epilog="--system and --romsdir are mandatory if you don't use --emulator")
+parser.add_argument("-s", "--system", help="System name")
+parser.add_argument("--systems", help="Print available systems", action='store_true')
+parser.add_argument("-l", "--lang", help="Lang for retrieve game info", default='en')
 parser.add_argument("--langs", help="Print avaliable langs", action='store_true')
 parser.add_argument("--romsdir", help="Set roms directories")
 parser.add_argument("--romlistsdir", help="Set the gamelist folder. Default is ~/.attract/romlists", default=os.environ['HOME']+"/.attract/romlists")
@@ -69,9 +70,9 @@ parser.add_argument("--marquee", help="Download marquee (if avaliable)", action=
 parser.add_argument("--region", help="Set region (eu for Europe, us for U.S.A and jp for Japan) for download some media, like wheels or box art. Default is eu", default='eu')
 parser.add_argument("--scraperdir", help="Set the scraper base dir. Default is ~/.attract/scraper/system/", default=os.environ['HOME']+"/.attract/scraper")
 parser.add_argument("--listfile", help="Use specific gamelist file.")
-parser.add_argument("--user", help="Your screenScraper user.")
-parser.add_argument("--password", help="Your screenScraper password.")
-parser.add_argument("--emulator", help="An AttractMode emulator configuration file")
+parser.add_argument("-u", "--user", help="Your screenScraper user.")
+parser.add_argument("-p", "--password", help="Your screenScraper password.")
+parser.add_argument("-e", "--emulator", help="An AttractMode emulator configuration file")
 
 args = parser.parse_args()
 
