@@ -85,6 +85,7 @@ class Scrapper:
 
 	def __init__(self):
 		if args.emulator:
+			logging.debug('Reading the AM emulator file: ' + args.emulator)
 			self.emcfg_data = self.readEmulatorConfig(args.emulator)
 
 		if not args.emulator and not args.system in systems.systems:
@@ -198,13 +199,15 @@ class Scrapper:
 
 		for r in self.romsdir:
 			for e in self.exts:
+				logging.debug('Scanning romdir ' + r + 'with extension .' + e)
 				files.extend(glob.glob(r + '/*.' + e))
 		if not files:
 			logging.critical('No roms found')
 			return 1
 
 		logging.info('Found %d roms' % len(files))
-		f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons\n")
+		romsList = []
+		f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons;Series;Language;Region;Rating\n")
 		for rom in sorted(files):
 			logging.info('Getting info for ' + rom)
 			base = os.path.basename(rom)
@@ -212,10 +215,14 @@ class Scrapper:
 			romobj = Rom(rom)
 			romobj.getCRC()
 			data = self.getGameInfo(romobj)
-			print(str(repr(romobj)))
+			logging.debug(str(repr(romobj)))
+			logging.debug(romobj)
 
 			if data:
-				f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
+				# Avoid dupes in case a rom exists with several extensions
+				if name not in romsList:
+					f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
+					romsList.append(name)
 				# Download the snapshot
 				if data['snap']:
 					logging.info('Downloading snapshot')
@@ -236,7 +243,7 @@ class Scrapper:
 					logging.info('Downloading marquee')
 					self.download(data['marquee'], '%s/%s/marquee/%s.png' % (self.scraperdir, self.system, name))
 			else:
-				f.write('%s;%s;%s;;;;;;;;;;;;;;\n' % (name, name, emuname))
+				f.write('%s;%s;%s;;;;;;;;;;;;;;;;;;\n' % (name, name, emuname))
 		f.close()
 
 	def scanTupleForValue(self, ttuple, tkey, tvalue, tfinalKey):
@@ -298,7 +305,7 @@ class Scrapper:
 				data['manufacturer'] = game['editeur']['text']
 			if 'noms' in game:
 				data['title'] = self.getValueFromTupleRes(game['noms'], args.lang)
-			if 'year' in game:
+			if 'dates' in game:
 				data['year'] = self.getValueFromTupleRes(game['dates'], args.lang).split('-')[0]
 			if 'genres' in game:
 				data['cat'] = self.getValueFromTupleRes(game['genres'][0]['noms'], args.lang, 'langue')
