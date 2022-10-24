@@ -61,9 +61,7 @@ LOGGING_LEVELS = [
 ]
 
 parser = argparse.ArgumentParser(epilog="--system and --romsdir are mandatory if you don't use --emulator")
-parser.add_argument("-s", "--system", help="System name")
 parser.add_argument("--systems", help="Print available systems", action='store_true')
-parser.add_argument("-l", "--lang", help="Lang for retrieve game info", default='en')
 parser.add_argument("--langs", help="Print avaliable langs", action='store_true')
 parser.add_argument("--romsdir", help="Set roms directories")
 parser.add_argument("--romlistsdir", help="Set the gamelist folder. Default is ~/.attract/romlists", default=os.environ['HOME']+"/.attract/romlists")
@@ -75,9 +73,12 @@ parser.add_argument("--marquee", help="Download marquee (if avaliable)", action=
 parser.add_argument("--region", help="Set region (eu for Europe, us for U.S.A and jp for Japan) for download some media, like wheels or box art. Default is eu", default='eu')
 parser.add_argument("--scraperdir", help="Set the scraper base dir. Default is ~/.attract/scraper/system/", default=os.environ['HOME']+"/.attract/scraper")
 parser.add_argument("--listfile", help="Use specific gamelist file.")
-parser.add_argument("-u", "--user", help="Your screenScraper user.")
-parser.add_argument("-p", "--password", help="Your screenScraper password.")
 parser.add_argument("-e", "--emulator", help="An AttractMode emulator configuration file")
+parser.add_argument("-f", "--force", help="Force rescraping even if the scraped data is already present", action='store_true')
+parser.add_argument("-l", "--lang", help="Lang for retrieve game info", default='en')
+parser.add_argument("-p", "--password", help="Your screenScraper password.")
+parser.add_argument("-s", "--system", help="System name")
+parser.add_argument("-u", "--user", help="Your screenScraper user.")
 parser.add_argument('-v', '--verbose', action='count', default=0, help='Verbose mode. Use multiple times for info/debug (-vv)')
 args = parser.parse_args()
 
@@ -334,8 +335,6 @@ class Scrapper:
 	def getData(self, rom: Rom):
 		root = None
 		md5 = md5sum(rom.rompathname) # Not better than hashing an archive ...
-		logging.debug('rom CRC: %s' % rom.crc)
-		logging.debug('rom md5: %s' % md5)
 		url = 'https://www.screenscraper.fr/api2/jeuInfos.php?devid=substring&devpassword=' + base64.b64decode('aE9YdDJXYUJJM2Y=').decode('ascii','strict') + '&softname=GroovyScrape&output=json'
 		if args.user and args.password:
 			url += '&ssid={}&sspassword={}'.format(args.user, args.password)
@@ -362,7 +361,7 @@ class Scrapper:
 	def download(self, url, dest):
 		logging.debug('About to download "%s"' % dest)
 		try:
-			if not os.path.exists(dest):
+			if not os.path.exists(dest) or args.force:
 				r = requests.get(url)
 				with open(dest,'wb') as f:
 					f.write(r.content)
