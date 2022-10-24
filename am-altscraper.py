@@ -33,6 +33,7 @@ import subprocess
 import zipfile
 import py7zr
 import logging
+from classes import Rom
 
 #reload(sys)
 #sys.setdefaultencoding("utf-8")
@@ -131,13 +132,13 @@ class Scrapper:
 			logging.critical("The dir %s doesn't exists, is not a dir or you don't have permission to write" % self.scraperdir)
 			exit()
 
-	def interpretShellVariables(self, varname):
+	def interpretShellVariables(self, varname: str) -> str:
 		CMD = 'echo "%s"' % varname
 		p = subprocess.Popen(CMD, stdout=subprocess.PIPE, shell=True, executable='/bin/bash')
 		value = p.stdout.readlines()[0].strip().decode()
 		return value
 
-	def splitParamFromValue(self, line):
+	def splitParamFromValue(self, line: str) -> list:
 		i = 0
 		while i < len(line):
 			if line[i] == ' ':
@@ -205,10 +206,13 @@ class Scrapper:
 		logging.info('Found %d roms' % len(files))
 		f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons\n")
 		for rom in sorted(files):
-			logging.info('Getting info for '+rom)
+			logging.info('Getting info for ' + rom)
 			base = os.path.basename(rom)
 			name = os.path.splitext(base)[0]
-			data = self.getGameInfo(rom)
+			romobj = Rom(rom)
+			romobj.getCRC()
+			data = self.getGameInfo(romobj)
+			print(str(repr(romobj)))
 
 			if data:
 				f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
@@ -270,19 +274,7 @@ class Scrapper:
 
 	def getGameInfo(self, rom):
 		root = None
-		romext = os.path.splitext(rom)[1]
-		if romext == '.zip':
-			logging.debug('Checking .zip CRC')
-			crc = self.getCRCFromZip(rom)
-		elif romext == '.7z':
-			logging.debug('Checking .7z CRC')
-			crc = self.getCRCFrom7z(rom)
-		else:
-			crc = CRC32_from_file(rom) # We shouldn't even be doing that
-		md5 = md5sum(rom) # Not better than hashing an archive ...
-		logging.debug('rom CRC: %s' % crc)
-		logging.debug('rom md5: %s' % md5)
-		root = self.getData(crc, md5, os.path.basename(rom))
+		root = self.getData(rom)
 		data = {
 			'title': '',
 			'year': '',
@@ -332,16 +324,19 @@ class Scrapper:
 
 			return(data)
 
-	def getData(self, crc, md5, rom):
+	def getData(self, rom: Rom):
 		root = None
+		md5 = md5sum(rom.rompathname) # Not better than hashing an archive ...
+		logging.debug('rom CRC: %s' % rom.crc)
+		logging.debug('rom md5: %s' % md5)
 		url = 'https://www.screenscraper.fr/api2/jeuInfos.php?devid=substring&devpassword=' + base64.b64decode('aE9YdDJXYUJJM2Y=').decode('ascii','strict') + '&softname=GroovyScrape&output=json'
 		if args.user and args.password:
 			url += '&ssid={}&sspassword={}'.format(args.user, args.password)
 		if not args.system in ['mame', 'arcade', 'mame-libretro', 'mame4all', 'fba']:
 			for req_type in [ 'crc', 'md5', 'romnom']:
-				if req_type == 'crc': req_val = crc
+				if req_type == 'crc': req_val = rom.crc
 				if req_type == 'md5': req_val = md5
-				if req_type == 'romnom': req_val = rom
+				if req_type == 'romnom': req_val = rom.romfile
 				specific_url = url + '&{}={}'.format(req_type, req_val)
 				r = requests.get(specific_url)
 				if r.status_code == 200:
@@ -351,9 +346,9 @@ class Scrapper:
 					logging.error('URL returned status code ' + str(r.status_code))
 		else:
 			# Force system id to 75 (MAME/arcade)
-			url += '&systemeid=75&romnom=' + rom
+			url += '&systemeid=75&romnom=' + rom.romfile  # This should be someday improved
 			r = requests.get(url)
-			if r.status_code ==200:
+			if r.status_code == 200:
 				root = json.loads(r.text)
 		return root
 
@@ -370,24 +365,6 @@ class Scrapper:
 		except:
 			logging.error("An error ocurred to download " + dest)
 
-	def getCRCFromZip(self, romfile):
-		with zipfile.ZipFile(romfile) as romzip:
-			zipinfodata = romzip.infolist()
-			# We need only one file in the archive, useless otherwise
-			if len(zipinfodata) > 1:
-				return None
-			decimalCRC = romzip.getinfo(zipinfodata[0].filename).CRC
-			# Return the HEX value of the CRC, as getinfo returns a decimal value
-			return f'{decimalCRC:x}'
-
-	def getCRCFrom7z(self, romfile):
-		with py7zr.SevenZipFile(romfile, 'r') as romzip:
-			zipinfodata = romzip.list()
-			if len(zipinfodata) > 1:
-				return None
-			decimalCRC = zipinfodata[0].crc32
-			# Return the HEX value of the CRC, as getinfo returns a decimal value
-			return f'{decimalCRC:x}'
 
 if __name__ == '__main__':
 	if args.systems:
