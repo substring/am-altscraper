@@ -60,16 +60,20 @@ LOGGING_LEVELS = [
     logging.NOTSET
 ]
 
+# Extensions should be done according to the http header of the website request
+possibleMediaData = {'snap': 'png', 'video': 'mp4', 'marquee': 'png', 'wheel': 'png', 'box2d': 'png', 'box3d': 'png'}
+specificMediaFolders = {'box2d': 'flyers', 'box3d': 'flyers'}
+
 parser = argparse.ArgumentParser(description='A scraper for AttractMode', epilog="--system and --romsdir are mandatory if you don't use --emulator")
-parser.add_argument("--boxs2d", help="Download box art (if avaliable)", action='store_true')
-parser.add_argument("--boxs3d", help="Download 3D box art (if avaliable)", action='store_true')
+parser.add_argument("--box2d", help="Download box art (if avaliable)", action='store_true')
+parser.add_argument("--box3d", help="Download 3D box art (if avaliable)", action='store_true')
 parser.add_argument("--emulator", "-e", help="An AttractMode emulator configuration file")
 parser.add_argument("--force", "-f", help="Force rescraping even if the scraped data is already present", action='store_true')
 parser.add_argument("--lang", "-l", help="Lang for retrieve game info", default='en')
 parser.add_argument("--langs", help="Print avaliable langs", action='store_true')
 parser.add_argument("--listfile", help="Use specific gamelist file.")
 parser.add_argument("--marquee", help="Download marquee (if avaliable)", action='store_true')
-parser.add_argument("--no-romlist-update", help="Don't update the romlist. Use this to just rescrape missing data", action='store_true')
+parser.add_argument("--no-romlist-update", help="Don't update the romlist. Use this to scrape missing data, it will always query the website for game data", action='store_true')
 parser.add_argument("--romlist-update", help="Update the romlist instead of overwriting it", action='store_true')
 parser.add_argument("--password", "-p", help="Your screenScraper password.")
 parser.add_argument("--region", help="Set region (eu for Europe, us for U.S.A and jp for Japan) for download some media, like wheels or box art. Default is eu", default='eu')
@@ -81,7 +85,7 @@ parser.add_argument("--systems", help="Print available systems", action='store_t
 parser.add_argument("--user", "-u", help="Your screenScraper user.")
 parser.add_argument('--verbose', '-v', help='Verbose mode. Use multiple times for info/debug (-vv)', action='count', default=0)
 parser.add_argument("--video", help="Download video (if avaliable)", action='store_true')
-parser.add_argument("--wheels", help="Download video (if avaliable)", action='store_true')
+parser.add_argument("--wheel", help="Download wheel (if avaliable)", action='store_true')
 args = parser.parse_args()
 
 class Scrapper:
@@ -211,6 +215,9 @@ class Scrapper:
 		emuname = None
 		romlistFile = ''
 		romlistData = []
+		romNumber = 0
+		romsList = []
+		data = []
 
 		if args.listfile:
 			base = os.path.basename(args.listfile)
@@ -232,11 +239,12 @@ class Scrapper:
 			initialRomlistCount = len(romlistData)
 		if not args.no_romlist_update: f = open(romlistFile, 'w')
 
-		logging.info('Found %d roms' % len(files))
-		romsList = []
-		data = []
+		romsTotalNumber = len(files)
+		logging.info('Found %d roms' % romsTotalNumber)
 		if not args.no_romlist_update: f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons;Series;Language;Region;Rating\n")
 		for rom in sorted(files):
+			romNumber += 1
+			logging.info('Scraping progression: {}/{}'.format(romNumber, romsTotalNumber))
 			logging.info('Getting info for ' + rom)
 			base = os.path.basename(rom)
 			name = os.path.splitext(base)[0]
@@ -268,25 +276,23 @@ class Scrapper:
 				if not romFound:
 					logging.debug('Adding rom to romlist: ' + name)
 					romlistData.append(romlistEntry.strip().split(';'))
-			# Download the snapshot
-			if data['snap']:
-				logging.info('Downloading snapshot')
-				self.download(data['snap'], '%s/%s/snap/%s.png' % (self.scraperdir, self.system, name))
-			if args.video and data['video']:
-				logging.info('Downloading video')
-				self.download(data['video'], '%s/%s/video/%s.mp4' % (self.scraperdir, self.system, name))
-			if args.wheels and data['wheel']:
-				logging.info('Downloading wheel')
-				self.download(data['wheel'], '%s/%s/wheel/%s.png' % (self.scraperdir, self.system, name))
-			if args.boxs2d and data['box2d']:
-				logging.info('Downloading 2D box')
-				self.download(data['box2d'], '%s/%s/flyer/%s.png' % (self.scraperdir, self.system, name))
-			if args.boxs3d and data['box3d']:
-				logging.info('Downloading 3D box')
-				self.download(data['box3d'], '%s/%s/flyer/%s_3d.png' % (self.scraperdir, self.system, name))
-			if args.marquee and data['marquee']:
-				logging.info('Downloading marquee')
-				self.download(data['marquee'], '%s/%s/marquee/%s.png' % (self.scraperdir, self.system, name))
+
+			# Download the possible media
+			for m in possibleMediaData:
+			# for  in specificMediaFolders
+				destFolder = m
+				if m in specificMediaFolders:
+					destFolder = specificMediaFolders[m]
+				destFileData = '%s/%s/%s/%s.%s' % (self.scraperdir, self.system, destFolder, name, possibleMediaData[m])
+				if os.path.exists(destFileData) and not args.force:
+					logging.info('{} already exists, skipping'.format(destFileData))
+					continue
+				if not data[m]:
+					logging.debug('No scraping data for ' + m)
+					continue
+				if m == 'snap' or vars(args)[m]:
+					logging.info('Downloading ' + m)
+					self.download(data[m], destFileData)
 
 		if not args.no_romlist_update: f.close()
 		if args.romlist_update:
@@ -414,16 +420,12 @@ class Scrapper:
 				root = json.loads(r.text)
 		return root
 
-	def download(self, url, dest):
-		logging.debug('About to download "%s"' % dest)
+	def download(self, url, dest) -> bool:
+		logging.debug('Downloading to "%s"' % dest)
 		try:
-			if not os.path.exists(dest) or args.force:
-				r = requests.get(url)
-				with open(dest,'wb') as f:
-					f.write(r.content)
-			else:
-				logging.debug("+-- File already exists, skipping download")
-
+			r = requests.get(url)
+			with open(dest,'wb') as f:
+				f.write(r.content)
 		except:
 			logging.error("An error ocurred to download " + dest)
 
@@ -450,7 +452,8 @@ if __name__ == '__main__':
 			format='%(asctime)s %(levelname)s %(filename)s/%(funcName)s(%(lineno)d): %(message)s')
 	# We don't want the full URLs to be printed'
 	logging.getLogger("urllib3").setLevel(logging.INFO) # requests is built on urllib3
-	# logging.debug(args)
+	logging.debug(args)
+	print(vars(args))
 
 	# Need a consistency check on --no-romlist-update and --romlist-update, can't set both
 	if args.no_romlist_update and args.romlist_update:
