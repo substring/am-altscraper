@@ -70,6 +70,7 @@ parser.add_argument("--langs", help="Print avaliable langs", action='store_true'
 parser.add_argument("--listfile", help="Use specific gamelist file.")
 parser.add_argument("--marquee", help="Download marquee (if avaliable)", action='store_true')
 parser.add_argument("--no-romlist-update", help="Don't update the romlist. Use this to just rescrape missing data", action='store_true')
+parser.add_argument("--romlist-update", help="Update the romlist instead of overwriting it", action='store_true')
 parser.add_argument("--password", "-p", help="Your screenScraper password.")
 parser.add_argument("--region", help="Set region (eu for Europe, us for U.S.A and jp for Japan) for download some media, like wheels or box art. Default is eu", default='eu')
 parser.add_argument("--scraperdir", help="Set the scraper base dir. Default is ~/.attract/scraper/system/", default=os.environ['HOME']+"/.attract/scraper")
@@ -100,7 +101,10 @@ class Scrapper:
 			exit("The region %s it's not supported or avaliable" % args.region)
 
 		if self.emcfg_data:
-			self.system = self.emcfg_data['system']
+			# Temporary hack: several ; separated systems can be listed
+			# it would be best to match with the scraper known systems
+			# But right now, keep the 1st one
+			self.system = self.emcfg_data['system'].split(';')[0]
 			self.romsdir = self.emcfg_data['rompath']
 			self.longsystem = os.path.splitext(os.path.basename(args.emulator))[0]
 			# This one is a very dangerous assumption, where all media folders are in the same subfolder
@@ -186,18 +190,35 @@ class Scrapper:
 		logging.debug('Data read from the emulator .cfg: {}'.format(emcfg_data))
 		return emcfg_data
 
+	def readRomlist(self, romlistFile):
+		romlistContent = []
+		if not os.path.exists(romlistFile):
+			return []
+		with open(romlistFile) as f:
+			for l in f:
+				if l[0] == '#':
+					continue
+				# As of AM+ 2.6.2, data is oganised like
+				#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons;Series;Language;Region;Rating\n"
+				Name, Title, Emulator, CloneOf, Year, Manufacturer, Category, Players, Rotation, Control, Status, DisplayCount, DisplayType, AltRomname, AltTitle, Extra, Buttons, Series, Language, Region, Rating = l.split(';')
+				romlistContent.append(l.strip().split(';'))
+		logging.debug(romlistContent)
+		return romlistContent
+
 	def scandir(self):
 		files = []
 		f = None
 		emuname = None
+		romlistFile = ''
+		romlistData = []
 
 		if args.listfile:
 			base = os.path.basename(args.listfile)
 			emuname = os.path.splitext(base)[0]
-			if not args.no_romlist_update: f = open(args.listfile, 'w')
+			romlistFile = args.listfile
 		else:
 			emuname = self.longsystem
-			if not args.no_romlist_update: f = open(args.romlistsdir+'/'+self.longsystem+'.txt', 'w')
+			romlistFile = args.romlistsdir+'/'+self.longsystem+'.txt'
 
 		for r in self.romsdir:
 			for e in self.exts:
@@ -206,9 +227,14 @@ class Scrapper:
 		if not files:
 			logging.critical('No roms found')
 			return 1
+		if args.romlist_update:
+			romlistData = self.readRomlist(romlistFile)
+			initialRomlistCount = len(romlistData)
+		if not args.no_romlist_update: f = open(romlistFile, 'w')
 
 		logging.info('Found %d roms' % len(files))
 		romsList = []
+		data = []
 		if not args.no_romlist_update: f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons;Series;Language;Region;Rating\n")
 		for rom in sorted(files):
 			logging.info('Getting info for ' + rom)
@@ -216,37 +242,62 @@ class Scrapper:
 			name = os.path.splitext(base)[0]
 			romobj = Rom(rom)
 			romobj.getCRC()
-			data = self.getGameInfo(romobj)
 			logging.debug(str(repr(romobj)))
 			logging.debug(romobj)
+			romFound = False
+			if args.romlist_update:
+				for e in romlistData:
+					if e[0] == name:
+						romFound = True
+						logging.debug('Rom already exists in the romlist')
+						break
+			if not romFound:
+				logging.info('Downloading game data')
+				data = self.getGameInfo(romobj)
 
-			if data:
-				# Avoid dupes in case a rom exists with several extensions
-				if name not in romsList:
-					if not args.no_romlist_update: f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
-					romsList.append(name)
-				# Download the snapshot
-				if data['snap']:
-					logging.info('Downloading snapshot')
-					self.download(data['snap'], '%s/%s/snap/%s.png' % (self.scraperdir, self.system, name))
-				if args.video and data['video']:
-					logging.info('Downloading video')
-					self.download(data['video'], '%s/%s/video/%s.mp4' % (self.scraperdir, self.system, name))
-				if args.wheels and data['wheel']:
-					logging.info('Downloading wheel')
-					self.download(data['wheel'], '%s/%s/wheel/%s.png' % (self.scraperdir, self.system, name))
-				if args.boxs2d and data['box2d']:
-					logging.info('Downloading 2D box')
-					self.download(data['box2d'], '%s/%s/flyer/%s.png' % (self.scraperdir, self.system, name))
-				if args.boxs3d and data['box3d']:
-					logging.info('Downloading 3D box')
-					self.download(data['box3d'], '%s/%s/flyer/%s_3d.png' % (self.scraperdir, self.system, name))
-				if args.marquee and data['marquee']:
-					logging.info('Downloading marquee')
-					self.download(data['marquee'], '%s/%s/marquee/%s.png' % (self.scraperdir, self.system, name))
-			else:
+			if not data:
 				if not args.no_romlist_update: f.write('%s;%s;%s;;;;;;;;;;;;;;;;;;\n' % (name, name, emuname))
+				continue
+			romlistEntry = '%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation'])
+			# Avoid dupes in case a rom exists with several extensions
+			if name not in romsList:
+				if not args.no_romlist_update and not args.romlist_update:
+					f.write(romlistEntry)
+				romsList.append(name)
+			if args.romlist_update:
+				if not romFound:
+					logging.debug('Adding rom to romlist: ' + name)
+					romlistData.append(romlistEntry.strip().split(';'))
+			# Download the snapshot
+			if data['snap']:
+				logging.info('Downloading snapshot')
+				self.download(data['snap'], '%s/%s/snap/%s.png' % (self.scraperdir, self.system, name))
+			if args.video and data['video']:
+				logging.info('Downloading video')
+				self.download(data['video'], '%s/%s/video/%s.mp4' % (self.scraperdir, self.system, name))
+			if args.wheels and data['wheel']:
+				logging.info('Downloading wheel')
+				self.download(data['wheel'], '%s/%s/wheel/%s.png' % (self.scraperdir, self.system, name))
+			if args.boxs2d and data['box2d']:
+				logging.info('Downloading 2D box')
+				self.download(data['box2d'], '%s/%s/flyer/%s.png' % (self.scraperdir, self.system, name))
+			if args.boxs3d and data['box3d']:
+				logging.info('Downloading 3D box')
+				self.download(data['box3d'], '%s/%s/flyer/%s_3d.png' % (self.scraperdir, self.system, name))
+			if args.marquee and data['marquee']:
+				logging.info('Downloading marquee')
+				self.download(data['marquee'], '%s/%s/marquee/%s.png' % (self.scraperdir, self.system, name))
+
 		if not args.no_romlist_update: f.close()
+		if args.romlist_update:
+			if len(romlistData) != initialRomlistCount:
+				logging.info('Updating the romlist')
+				# Let's sort first
+				sortedDict = dict([(i[0], i) for i in romlistData])
+				sortedDict = dict(sorted(sortedDict.items()))
+				with open(romlistFile, 'w') as f:
+					for k, v in sortedDict.items():
+						f.writelines(';'.join(v) + '\n')
 
 	def scanTupleForValue(self, ttuple, tkey, tvalue, tfinalKey):
 		for k in ttuple:
@@ -339,14 +390,13 @@ class Scrapper:
 
 	def getData(self, rom: Rom):
 		root = None
-		md5 = md5sum(rom.rompathname) # Not better than hashing an archive ...
 		url = 'https://www.screenscraper.fr/api2/jeuInfos.php?devid=substring&devpassword=' + base64.b64decode('aE9YdDJXYUJJM2Y=').decode('ascii','strict') + '&softname=GroovyScrape&output=json'
 		if args.user and args.password:
 			url += '&ssid={}&sspassword={}'.format(args.user, args.password)
 		if not args.system in ['mame', 'arcade', 'mame-libretro', 'mame4all', 'fba']:
 			for req_type in [ 'crc', 'md5', 'romnom']:
 				if req_type == 'crc': req_val = rom.crc
-				if req_type == 'md5': req_val = md5
+				if req_type == 'md5': req_val = rom.md5
 				if req_type == 'romnom': req_val = rom.romfile
 				specific_url = url + '&{}={}'.format(req_type, req_val)
 				r = requests.get(specific_url)
@@ -402,8 +452,14 @@ if __name__ == '__main__':
 	logging.getLogger("urllib3").setLevel(logging.INFO) # requests is built on urllib3
 	# logging.debug(args)
 
+	# Need a consistency check on --no-romlist-update and --romlist-update, can't set both
+	if args.no_romlist_update and args.romlist_update:
+		logging.error("You can't set --no-romlist-update and --romlist-update" )
+		exit()
+
 	if args.emulator or (args.system and args.romsdir):
 		Scrapper()
 	else:
 		parser.print_help()
 
+	logging.info('Scraping over!')
