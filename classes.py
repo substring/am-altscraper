@@ -35,7 +35,7 @@ class Rom:
 			return self.crc
 		self.listArchive()
 		if len(self.archiveContent) == 1:
-			self.crc = list(self.archiveContent[0].values())[0]
+			self.crc = list(self.archiveContent[0].values())[0].zfill(8)
 		else:
 			self.crc = None
 		return self.crc
