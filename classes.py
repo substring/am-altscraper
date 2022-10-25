@@ -25,7 +25,7 @@ class Rom:
 		self.getSHA1()
 
 	def __repr__(self):
-		return "Rom({}, crc = {}, filecrc = {})".format(self.rompathname, self.crc, self.filecrc)
+		return "Rom('{}', crc = '{}', filecrc = '{}')".format(self.rompathname, self.crc, self.filecrc)
 
 	def __str__(self):
 		return "Rom: {}\nSplit into {} / {} . {}\nHashes:\n  - CRC: {}\n  - MD5: {}\n  - SHA1: {}\nFile content:: {}".format(self.rompathname, self.rompath, self.romfile, self.romext, self.crc, self.md5, self.sha1, self.archiveContent)
@@ -71,7 +71,6 @@ class Rom:
 			self.archiveContent = self.listArchiveFromZip()
 		if self.romext == '7z':
 			self.archiveContent = self.listArchiveFrom7z()
-		print(self.archiveContent)
 
 	def extractFileFromZip(self, archiveFile: str, destinationPath = '/tmp') -> str:
 		with zipfile.ZipFile(self.rompathname) as romzip:
@@ -91,7 +90,6 @@ class Rom:
 			extractedFileLocation = self.extractFileFromZip(fileName)
 		if self.romext == '7z':
 			extractedFileLocation = self.extractFileFrom7z(fileName)
-			print(extractedFileLocation)
 		return extractedFileLocation
 
 	def md5sum(self, filename):

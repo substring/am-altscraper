@@ -25,7 +25,7 @@
 #
 
 import sys, os, hashlib
-import json, binascii, requests, argparse, collections, glob
+import json, binascii, argparse, collections, glob
 import systems, importlib
 import requests
 import json, base64
@@ -60,26 +60,27 @@ LOGGING_LEVELS = [
     logging.NOTSET
 ]
 
-parser = argparse.ArgumentParser(epilog="--system and --romsdir are mandatory if you don't use --emulator")
-parser.add_argument("--systems", help="Print available systems", action='store_true')
-parser.add_argument("--langs", help="Print avaliable langs", action='store_true')
-parser.add_argument("--romsdir", help="Set roms directories")
-parser.add_argument("--romlistsdir", help="Set the gamelist folder. Default is ~/.attract/romlists", default=os.environ['HOME']+"/.attract/romlists")
-parser.add_argument("--video", help="Download video (if avaliable)", action='store_true')
-parser.add_argument("--wheels", help="Download video (if avaliable)", action='store_true')
+parser = argparse.ArgumentParser(description='A scraper for AttractMode', epilog="--system and --romsdir are mandatory if you don't use --emulator")
 parser.add_argument("--boxs2d", help="Download box art (if avaliable)", action='store_true')
 parser.add_argument("--boxs3d", help="Download 3D box art (if avaliable)", action='store_true')
+parser.add_argument("--emulator", "-e", help="An AttractMode emulator configuration file")
+parser.add_argument("--force", "-f", help="Force rescraping even if the scraped data is already present", action='store_true')
+parser.add_argument("--lang", "-l", help="Lang for retrieve game info", default='en')
+parser.add_argument("--langs", help="Print avaliable langs", action='store_true')
+parser.add_argument("--listfile", help="Use specific gamelist file.")
 parser.add_argument("--marquee", help="Download marquee (if avaliable)", action='store_true')
+parser.add_argument("--no-romlist-update", help="Don't update the romlist. Use this to just rescrape missing data", action='store_true')
+parser.add_argument("--password", "-p", help="Your screenScraper password.")
 parser.add_argument("--region", help="Set region (eu for Europe, us for U.S.A and jp for Japan) for download some media, like wheels or box art. Default is eu", default='eu')
 parser.add_argument("--scraperdir", help="Set the scraper base dir. Default is ~/.attract/scraper/system/", default=os.environ['HOME']+"/.attract/scraper")
-parser.add_argument("--listfile", help="Use specific gamelist file.")
-parser.add_argument("-e", "--emulator", help="An AttractMode emulator configuration file")
-parser.add_argument("-f", "--force", help="Force rescraping even if the scraped data is already present", action='store_true')
-parser.add_argument("-l", "--lang", help="Lang for retrieve game info", default='en')
-parser.add_argument("-p", "--password", help="Your screenScraper password.")
-parser.add_argument("-s", "--system", help="System name")
-parser.add_argument("-u", "--user", help="Your screenScraper user.")
-parser.add_argument('-v', '--verbose', action='count', default=0, help='Verbose mode. Use multiple times for info/debug (-vv)')
+parser.add_argument("--romsdir", help="Set roms directories")
+parser.add_argument("--romlistsdir", help="Set the gamelist folder. Default is ~/.attract/romlists", default=os.environ['HOME']+"/.attract/romlists")
+parser.add_argument("--system", "-s", help="System name")
+parser.add_argument("--systems", help="Print available systems", action='store_true')
+parser.add_argument("--user", "-u", help="Your screenScraper user.")
+parser.add_argument('--verbose', '-v', help='Verbose mode. Use multiple times for info/debug (-vv)', action='count', default=0)
+parser.add_argument("--video", help="Download video (if avaliable)", action='store_true')
+parser.add_argument("--wheels", help="Download video (if avaliable)", action='store_true')
 args = parser.parse_args()
 
 class Scrapper:
@@ -193,10 +194,10 @@ class Scrapper:
 		if args.listfile:
 			base = os.path.basename(args.listfile)
 			emuname = os.path.splitext(base)[0]
-			f = open(args.listfile, 'w')
+			if not args.no_romlist_update: f = open(args.listfile, 'w')
 		else:
 			emuname = self.longsystem
-			f = open(args.romlistsdir+'/'+self.longsystem+'.txt', 'w')
+			if not args.no_romlist_update: f = open(args.romlistsdir+'/'+self.longsystem+'.txt', 'w')
 
 		for r in self.romsdir:
 			for e in self.exts:
@@ -208,7 +209,7 @@ class Scrapper:
 
 		logging.info('Found %d roms' % len(files))
 		romsList = []
-		f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons;Series;Language;Region;Rating\n")
+		if not args.no_romlist_update: f.write("#Name;Title;Emulator;CloneOf;Year;Manufacturer;Category;Players;Rotation;Control;Status;DisplayCount;DisplayType;AltRomname;AltTitle;Extra;Buttons;Series;Language;Region;Rating\n")
 		for rom in sorted(files):
 			logging.info('Getting info for ' + rom)
 			base = os.path.basename(rom)
@@ -222,7 +223,7 @@ class Scrapper:
 			if data:
 				# Avoid dupes in case a rom exists with several extensions
 				if name not in romsList:
-					f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
+					if not args.no_romlist_update: f.write('%s;%s;%s;;%s;%s;%s;%s;%s;;;;;;;;;;;;\n' % (name, data['title'], emuname, data['year'], data['manufacturer'], data['cat'], data['players'], data['rotation']))
 					romsList.append(name)
 				# Download the snapshot
 				if data['snap']:
@@ -244,8 +245,8 @@ class Scrapper:
 					logging.info('Downloading marquee')
 					self.download(data['marquee'], '%s/%s/marquee/%s.png' % (self.scraperdir, self.system, name))
 			else:
-				f.write('%s;%s;%s;;;;;;;;;;;;;;;;;;\n' % (name, name, emuname))
-		f.close()
+				if not args.no_romlist_update: f.write('%s;%s;%s;;;;;;;;;;;;;;;;;;\n' % (name, name, emuname))
+		if not args.no_romlist_update: f.close()
 
 	def scanTupleForValue(self, ttuple, tkey, tvalue, tfinalKey):
 		for k in ttuple:
@@ -258,6 +259,10 @@ class Scrapper:
 			val = self.scanTupleForValue(ttuple, criteriakey, k, valuekey)
 			if val:
 				return val
+		# Ok, some roms were edited in a single country, return the first value then
+		for k in ttuple[0]:
+			if k == valuekey:
+				return ttuple[0][k]
 		return None
 
 	def scanTupleForValueWith2Criteria(self, ttuple, tkey1, tvalue1, tkey2, tvalue2, tfinalKey):
@@ -346,10 +351,11 @@ class Scrapper:
 				specific_url = url + '&{}={}'.format(req_type, req_val)
 				r = requests.get(specific_url)
 				if r.status_code == 200:
+					logging.debug(rom.romfile + ': URL returned status code ' + str(r.status_code) + ' using ' + req_type)
 					root = json.loads(r.text)
 					break
 				else:
-					logging.error('URL returned status code ' + str(r.status_code))
+					logging.error(rom.romfile + ': URL returned status code ' + str(r.status_code) + ' using ' + req_type)
 		else:
 			# Force system id to 75 (MAME/arcade)
 			url += '&systemeid=75&romnom=' + rom.romfile  # This should be someday improved
@@ -394,6 +400,7 @@ if __name__ == '__main__':
 			format='%(asctime)s %(levelname)s %(filename)s/%(funcName)s(%(lineno)d): %(message)s')
 	# We don't want the full URLs to be printed'
 	logging.getLogger("urllib3").setLevel(logging.INFO) # requests is built on urllib3
+	# logging.debug(args)
 
 	if args.emulator or (args.system and args.romsdir):
 		Scrapper()
