@@ -1,7 +1,7 @@
 # AM-Altscraper
-A alternative scraper for Attract Mode using the [screenscraper.fr](http://www.screenscraper.fr) API and write in Python 2.7
+A alternative scraper for Attract Mode using the [screenscraper.fr](http://www.screenscraper.fr) API and written in Python 3
 
-You can download game info: Title, categories, year, boxs arts (2D and 3D), snapshoot, wheels and/or video
+You can download game info: Title, categories, year, boxs arts (2D and 3D), snapshoot, wheelsi, marquees and/or video
 
 At the moment this script only works and tested on GNU/Linux and RetroPie for Raspberry Pi (based on Raspbian).
 
@@ -29,6 +29,7 @@ At the moment this script only works and tested on GNU/Linux and RetroPie for Ra
 ![screenshoot](screen.png)
 
 ## Credits:
-AM-Altscraper &copy; 2017 Alfonso Saavedra "Son Link"
+Orignial author &copy; 2017 Alfonso Saavedra "Son Link"
+Active fork maintained by Substring(https://github.com/substring/am-altscraper)
 
-Proyect under the GPL v3 license
+Project under the GPL v3 license
