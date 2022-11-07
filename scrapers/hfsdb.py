@@ -3,7 +3,8 @@ import json
 import logging
 import requests
 #from .scraper import Scraper, GameInfo, Asset, Media, Regions
-from scrapers.scraper import Scraper, GameInfo, Asset, Media, Regions
+from scrapers.scraper import Scraper
+from classes.gameinfo import GameInfo, Asset, Media, Regions
 
 HFSMedia = ['screenshot', 'video', 'cover2d', 'cover3d', 'cover2d', 'None', 'cover2d', 'logo', 'screenshot']
 screenshottype = {'title': Asset.TITLE.value, 'in game': Asset.SCREENSHOT.value}

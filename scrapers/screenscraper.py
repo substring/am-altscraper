@@ -1,7 +1,8 @@
 import html
 import json
 import logging
-from scrapers.scraper import Scraper, GameInfo, Asset, Media, Regions
+from scrapers.scraper import Scraper
+from classes.gameinfo import GameInfo, Asset, Media, Regions
 
 
 # This list uses the absolute same index as Asset(). It helps setting the
