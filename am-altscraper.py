@@ -33,18 +33,10 @@ import subprocess
 import zipfile
 import py7zr
 import logging
-from classes import Rom
+from classes.rom import Rom
 
 #reload(sys)
 #sys.setdefaultencoding("utf-8")
-
-def CRC32_from_file(filename):
-	buf = open(filename,'rb').read()
-	buf = (binascii.crc32(buf) & 0xFFFFFFFF)
-	return "%08X" % buf
-
-def md5sum(filename):
-	return hashlib.md5(open(filename,'rb').read()).hexdigest()
 
 langs = {
 	'en': 'us',
@@ -77,7 +69,7 @@ parser.add_argument("--no-romlist-update", help="Don't update the romlist. Use t
 parser.add_argument("--romlist-update", help="Update the romlist instead of overwriting it", action='store_true')
 parser.add_argument("--password", "-p", help="Your screenScraper password.")
 parser.add_argument("--region", help="Set region (eu for Europe, us for U.S.A and jp for Japan) for download some media, like wheels or box art. Default is eu", default='eu')
-parser.add_argument("--scraperdir", help="Set the scraper base dir. Default is ~/.attract/scraper/system/", default=os.environ['HOME']+"/.attract/scraper")
+parser.add_argument("--scraperdir", help="Set the scraper base dir. Default is ~/.attract/scraper/<system>/", default=os.environ['HOME']+"/.attract/scraper")
 parser.add_argument("--romsdir", help="Set roms directories")
 parser.add_argument("--romlistsdir", help="Set the gamelist folder. Default is ~/.attract/romlists", default=os.environ['HOME']+"/.attract/romlists")
 parser.add_argument("--system", "-s", help="System name")
