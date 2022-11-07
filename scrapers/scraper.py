@@ -7,7 +7,7 @@ from enum import IntEnum, auto
 
 # Listed in descending search order for scrapers that don't support regions
 # or when the expected language doesn't exist
-Regions = ['wor', 'jp', 'eu', 'us', 'ss', 'fr', 'de', 'it', 'es', 'pt', 'au', 'br', 'asi', 'kr', 'ss']
+Regions = ['wor', 'jp', 'eu', 'us', 'en', 'ss', 'fr', 'de', 'it', 'es', 'pt', 'au', 'br', 'asi', 'kr', 'ss']
 # May be useful to set a different default order depending on countries
 # For example:
 # fr would go : fr, eu, wor ...
@@ -17,7 +17,7 @@ Regions = ['wor', 'jp', 'eu', 'us', 'ss', 'fr', 'de', 'it', 'es', 'pt', 'au', 'b
 class Asset(IntEnum):
 	SCREENSHOT = 0
 	VIDEO = 1
-	BOX2D = 2
+	BOX2D = 2 # The full box: back + side + front
 	BOX3D = 3
 	FRONT = 4
 	SIDE = 5
@@ -101,7 +101,7 @@ class GameInfo:
 					break
 		return filteredMedias
 
-	# Returns a dit with all data filtered on the language
+	# Returns a dict with all data filtered on the language
 	def filterOnLang(self, lang: str):
 		if lang not in Regions:
 			raise ValueError("Language '{}' is not in {}".format(lang, Regions))
@@ -154,13 +154,19 @@ class Scraper(object):
 	def download(self, endpoint: str, params: dict = None) -> dict:
 		"""Basic downloading"""
 		# First build up the url
-		targetUrl = self.baseUrl + '/' + endpoint + '?'
+		isFirstParam = True
+		targetUrl = self.baseUrl + '/' + endpoint
 		if self.baseUrlParams:
-			targetUrl += self.baseUrlParams
+			targetUrl += '?' + self.baseUrlParams
+			isFirstParam = False
 		if params:
 			for k, v in params.items():
-				targetUrl += '&{}={}'.format(k, v)
-		print(targetUrl)
+				if isFirstParam:
+					targetUrl += '?{}={}'.format(k, v)
+					isFirstParam = False
+				else:
+					targetUrl += '&{}={}'.format(k, v)
+		# print(targetUrl)
 		try:
 			if self.session:
 				r = self.session.get(targetUrl)
@@ -186,7 +192,8 @@ class Scraper(object):
 		return True
 
 	# The following methods MUST be implemented in the child class
-	def getGameInfo(self, rom):
+	# Gets the complete data for a game and fill the GameInfo object
+	def getGameInfo(self, rom) -> GameInfo:
 		raise NotImplementedError()
 	def getGameAsset(self, rom, assetType: str):
 		raise NotImplementedError()
@@ -210,4 +217,4 @@ class Scraper(object):
 		if not self.platformCache:
 			return
 		with open(self.platformCacheFile, 'w') as f:
-			json.dump(self.platformCache, f)
+			json.dump(self.platformCache, f, indent=4)

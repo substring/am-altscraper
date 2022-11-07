@@ -1,4 +1,5 @@
-from scraper import Scraper
+#from .scraper import Scraper
+from scrapers.scraper import Scraper
 
 class TheGamesDb(Scraper):
 	def __init__(self, apiKey = None):
