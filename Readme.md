@@ -11,6 +11,7 @@ At the moment this script only works and tested on GNU/Linux and RetroPie for Ra
 * Python 3.x
 * python-request
 * py7zr
+* python-dotenv (for testing only)
 
 ## Systems supported
 
@@ -35,6 +36,6 @@ At the moment this script only works and tested on GNU/Linux and RetroPie for Ra
 ## Credits
 
 Orignial author &copy; 2017 Alfonso Saavedra "Son Link"
-Active fork maintained by Substring(https://github.com/substring/am-altscraper)
+Active fork maintained by Substring(<https://github.com/substring/am-altscraper>)
 
 Project under the GPL v3 license
