@@ -5,11 +5,14 @@ You can download game info: Title, categories, year, boxs arts (2D and 3D), snap
 
 At the moment this script only works and tested on GNU/Linux and RetroPie for Raspberry Pi (based on Raspbian).
 
-## Requisites:
+## Requisites
+
 * Python 3.x
 * python-request
+* py7zr
 
-## Systems supported:
+## Systems supported
+
 * Nintendo Entertaiment System (NES)
 * Super Nintendo (SNES)
 * Nintendo 64
@@ -24,11 +27,12 @@ At the moment this script only works and tested on GNU/Linux and RetroPie for Ra
 * Zx Spectrum
 * Neo Geo Pocket/Pocket Color
 
+## Screenshoot
 
-## Screenshoot:
 ![screenshoot](screen.png)
 
-## Credits:
+## Credits
+
 Orignial author &copy; 2017 Alfonso Saavedra "Son Link"
 Active fork maintained by Substring(https://github.com/substring/am-altscraper)
 
