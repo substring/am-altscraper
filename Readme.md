@@ -1,4 +1,5 @@
 # AM-Altscraper
+
 A alternative scraper for Attract Mode using the [screenscraper.fr](http://www.screenscraper.fr) API and written in Python 3
 
 You can download game info: Title, categories, year, boxs arts (2D and 3D), snapshoot, wheelsi, marquees and/or video
