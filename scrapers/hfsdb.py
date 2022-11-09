@@ -121,6 +121,9 @@ class HFSDB(Scraper):
 		if jsData['count'] > 1:
 			logging.warn("HFSDB didn't return a single rom info for " + rom.rompathname)
 			return None
+		if jsData['count'] == 0:
+			logging.error('HFSDB has no result for rom')
+			return None
 		if 'results' not in jsData:
 			logging.warn('Got no data for rom')
 			return None
