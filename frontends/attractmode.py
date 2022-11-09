@@ -1,10 +1,10 @@
 import logging
 import os
-from frontends.frontend import FrontEnd
 from classes.gameinfo import Asset
+from frontends.frontend import FrontEnd
 
 class AttractMode(FrontEnd):
-	def __init__(self, cfgFile = None, romsDir = None, system = None, extensions = None, artworkPath = None):
+	def __init__(self, cfgFile = None, romsDir = None, system = None, extensions = None, artworkPath = dict()):
 		super().__init__(name='AttractMode', cfgFile=cfgFile, romsDir=romsDir, system=system, extensions=extensions, artworkPath=artworkPath)
 		if self.configurationFile:
 			self.readEmulatorConfig()
@@ -37,13 +37,26 @@ class AttractMode(FrontEnd):
 					self.romsDir = value.split(';')
 
 		if artworkPaths:
-			# for p, v in artworkPaths.items():
-			# 	artwork_path.extend(v)
-			pass
+			for p, v in artworkPaths.items():
+				if p == 'flyer':
+					self.artwokerPath[Asset.BOX2D.value] = v
+					self.artwokerPath[Asset.BOX3D.value] = v
+					self.artwokerPath[Asset.FRONT.value] = v
+					self.artwokerPath[Asset.SIDE.value] = v
+					self.artwokerPath[Asset.BACK.value] = v
+				if p == 'marquee':
+					self.artwokerPath[Asset.MARQUEE.value] = v
+				if p == 'snap':
+					self.artwokerPath[Asset.SCREENSHOT.value] = v
+					self.artwokerPath[Asset.TITLE.value] = v
+					self.artwokerPath[Asset.VIDEO.value] = v
+				if p == 'wheel':
+					self.artwokerPath[Asset.WHEEL.value] = v
+
 		# self.artwokerPath = os.path.dirname(os.path.commonpath(artwork_path))
 		# If no common path was found, fallback to another value
-		if self.artwokerPath and os.path.basename(self.artwokerPath) == self.system:
-			self.artwokerPath = self.scraperdir[0:len(self.scraperdir) - len(self.system)]
+		# if self.artwokerPath and os.path.basename(self.artwokerPath) == self.system:
+		# 	self.artwokerPath = self.scraperdir[0:len(self.scraperdir) - len(self.system)]
 
 	def splitParamFromValue(self, line: str) -> list:
 		i = 0

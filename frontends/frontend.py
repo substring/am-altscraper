@@ -1,7 +1,7 @@
 import subprocess
 
 class FrontEnd():
-	def __init__(self, name = None, cfgFile = None, romsDir = None, system = None, extensions = None, artworkPath = None):
+	def __init__(self, name = None, cfgFile = None, romsDir = None, system = None, extensions = None, artworkPath = dict()):
 		self.name = name # the frontend name
 		self.configurationFile = cfgFile # the configuration file to parse
 		if romsDir:
