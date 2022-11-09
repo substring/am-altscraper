@@ -63,6 +63,8 @@ def test_HFSDB():
 	myHFSDB.downloadToFile('tests/sonic2_hfsdb.json', 'games', {'medias__md5': Sonic2Rom.md5sum})
 	with open('tests/sonic2_hfsdb.pretty.json', 'w') as f:
 		json.dump(json.loads(myHFSDB.download('games', {'medias__md5': '9feeb724052c39982d432a7851c98d3e'})['content']), f, indent=4)
+	with open('tests/alienar_hfsdb.pretty.json', 'w') as f:
+		json.dump(json.loads(myHFSDB.download('games', {'medias__description': 'alienar'})['content']), f, indent=4)
 
 loggingLevel = logging.DEBUG
 if loggingLevel == logging.DEBUG:

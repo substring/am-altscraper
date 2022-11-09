@@ -1,2 +1,4 @@
 __pycache__/
 *.json
+*.zip
+*.7z
