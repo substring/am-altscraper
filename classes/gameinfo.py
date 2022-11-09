@@ -24,6 +24,7 @@ class Asset(IntEnum):
 	BACK = 6
 	MARQUEE = 7
 	TITLE = 8
+	WHEEL = 9
 
 
 class Media:

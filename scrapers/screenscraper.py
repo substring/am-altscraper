@@ -8,7 +8,7 @@ from classes.gameinfo import GameInfo, Asset, Media, Regions
 # This list uses the absolute same index as Asset(). It helps setting the
 # SS media type to the corresponding asset. When a value is a list, it's to set
 # a prefered order for the possible SS media type that fit for the corresponding Asset()
-SSMedia = ['ss', 'video', 'box-texture', 'box-3D', 'box-2D' , 'box-2D-side', 'box-2D-back', ['wheel', 'wheel-hd', 'screenmarquee', 'screenmarquee-hd'], 'sstitle']
+SSMedia = ['ss', 'video', 'box-texture', 'box-3D', 'box-2D' , 'box-2D-side', 'box-2D-back', ['wheel', 'wheel-hd', 'screenmarquee', 'screenmarquee-hd'], 'sstitle', ['wheel-carbon', 'wheel-steel']]
 
 
 class ScreenScraper(Scraper):

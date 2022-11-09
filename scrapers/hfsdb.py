@@ -6,7 +6,7 @@ import requests
 from scrapers.scraper import Scraper
 from classes.gameinfo import GameInfo, Asset, Media, Regions
 
-HFSMedia = ['screenshot', 'video', 'cover2d', 'cover3d', 'cover2d', 'None', 'cover2d', 'logo', 'screenshot']
+HFSMedia = ['screenshot', 'video', 'cover2d', 'cover3d', 'cover2d', 'None', 'cover2d', 'logo', 'screenshot', 'wheel']
 screenshottype = {'title': Asset.TITLE.value, 'in game': Asset.SCREENSHOT.value}
 cover2dtype = {'full': Asset.BOX2D.value, 'front': Asset.FRONT.value, 'back': Asset.BACK.value}
 HFSRegions = {'PAL': 'eu', 'US': 'us', 'JPN': 'jp', 'WORLD': 'wor'}

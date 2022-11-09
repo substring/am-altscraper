@@ -58,7 +58,8 @@ def test_HFSDB():
 	myHFSDB = HFSDB(user = env['HFSDB_USER'], password = env['HFSDB_PASSWD'])
 	print(myHFSDB.download('account'))
 	Sonic2Rom = Rom('tests/Sonic The Hedgehog 2 (World) (Rev A).7z')
-	# romInfo = myHFSDB.getGameInfo(Sonic2Rom)
+	romInfo = myHFSDB.getGameInfo(Sonic2Rom)
+	logging.debug(romInfo.filterOnLang('fr'))
 	# myHFSDB.getPlatforms()
 	myHFSDB.downloadToFile('tests/sonic2_hfsdb.json', 'games', {'medias__md5': Sonic2Rom.md5sum})
 	with open('tests/sonic2_hfsdb.pretty.json', 'w') as f:
