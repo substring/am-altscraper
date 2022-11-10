@@ -1,3 +1,5 @@
+"""FrontEnd basclass and children classes tests"""
+
 import logging
 import sys
 

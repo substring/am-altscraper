@@ -7,7 +7,7 @@ from classes.gameinfo import GameInfo
 
 
 class Scraper(object):
-	def __init__(self, name = None, baseUrl = None, baseUrlParams = None, apiKey = None, devUser = None, devPassword = None, user = None, password = None):
+	def __init__(self, name = '', baseUrl = '', baseUrlParams = '', apiKey = '', devUser = '', devPassword = '', user = '', password = ''):
 		self.name = name
 		self.baseUrl = baseUrl
 		self.baseUrlParams = baseUrlParams
