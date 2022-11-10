@@ -15,13 +15,13 @@ from scrapers.scraper import Scraper
 from scrapers.screenscraper import ScreenScraper
 from scrapers.thegamesdb import TheGamesDb
 
+zips = [['Sonic The Hedgehog 2 (World) (Rev A).7z', 'megadrive', 'https://edgeemu.net/down.php?id=12698'],
+        [ 'alienar.zip', 'arcade', 'https://www.mamedev.org/roms/alienar/alienar.zip']]
 
 def download_zips():
     """Downloads various romfiles for testing"""
-    zips = { 'Sonic The Hedgehog 2 (World) (Rev A).7z': 'https://edgeemu.net/down.php?id=12698',
-            'alienar.zip': 'https://www.mamedev.org/roms/alienar/alienar.zip'}
 
-    for f, url in zips.items():
+    for f, system, url in zips:
         if os.path.exists('tests/' + f):
             continue
         r = requests.get(url, allow_redirects=True, timeout=15)
@@ -51,7 +51,8 @@ def test_screenscraper():
     # print(vars(my_sscraper))
     sonic2_rom = Rom('tests/Sonic The Hedgehog 2 (World) (Rev A).7z')
     rom_info = my_sscraper.getGameInfo(sonic2_rom, 'megadrive')
-    logging.debug(rom_info.filterOnLang('fr'))
+    if rom_info:
+        logging.debug(rom_info.filterOnLang('fr'))
     # print(my_sscraper.download('ssuserInfos.php'))
     # print(my_sscraper.downloadToFile('tests/sonic2_ss.json', 'jeuInfos.php', {'crc': '24ab4c3a'}))
     # my_sscraper.getPlatforms()
@@ -77,15 +78,21 @@ def test_hfsdb():
     print(my_hfsdb.download('account'))
     sonic2_rom = Rom('tests/Sonic The Hedgehog 2 (World) (Rev A).7z')
     rom_info = my_hfsdb.getGameInfo(sonic2_rom)
-    logging.debug("Filtered som:\n%s", rom_info.filterOnLang('fr'))
+    if rom_info:
+        logging.debug("Filtered som:\n%s", rom_info.filterOnLang('fr'))
     # my_hfsdb.getPlatforms()
     my_hfsdb.downloadToFile('tests/sonic2_hfsdb.json', 'games', {'medias__md5': sonic2_rom.md5sum})
-    with open('tests/sonic2_hfsdb.pretty.json', 'w', encoding="utf8") as f:
-        json.dump(json.loads(my_hfsdb.download('games', 
-            {'medias__md5': '9feeb724052c39982d432a7851c98d3e'})['content']), f, indent=4)
-    with open('tests/alienar_hfsdb.pretty.json', 'w', encoding="utf8") as f:
-        json.dump(json.loads(my_hfsdb.download('games', 
-            {'medias__description': 'alienar'})['content']), f, indent=4)
+    for rom_file, system, url in zips:
+        param = ''
+        rom = Rom('tests/' + rom_file)
+        file_name_no_ext = os.path.splitext(rom_file)[0]
+        json_filename = 'tests/{}_{}.json'.format(file_name_no_ext, my_hfsdb.name)
+        if system == 'arcade':
+            param = {'medias__description': file_name_no_ext}
+        else:
+            param = {'medias__md5': rom.md5}
+        with open(json_filename, 'w', encoding="utf8") as f:
+            json.dump(json.loads(my_hfsdb.download('games', param)['content']), f, indent=4)
 
 LOGGING_LEVEL = logging.DEBUG
 if LOGGING_LEVEL == logging.DEBUG:

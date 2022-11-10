@@ -4,7 +4,7 @@ from classes.gameinfo import Asset
 from frontends.frontend import FrontEnd
 
 class AttractMode(FrontEnd):
-	def __init__(self, cfgFile = None, romsDir = None, system = None, extensions = None, artworkPath = dict()):
+	def __init__(self, cfgFile = '', romsDir = '', system = '', extensions = [], artworkPath = dict()):
 		super().__init__(name='AttractMode', cfgFile=cfgFile, romsDir=romsDir, system=system, extensions=extensions, artworkPath=artworkPath)
 		if self.configurationFile:
 			self.readEmulatorConfig()
@@ -21,6 +21,7 @@ class AttractMode(FrontEnd):
 				if l[0: len(p)] != p:
 					continue
 				i = len(p)
+				# Look for the value of the parameter
 				while i < len(l):
 					if l[i] != ' ':
 						break
@@ -39,24 +40,24 @@ class AttractMode(FrontEnd):
 		if artworkPaths:
 			for p, v in artworkPaths.items():
 				if p == 'flyer':
-					self.artwokerPath[Asset.BOX2D.value] = v
-					self.artwokerPath[Asset.BOX3D.value] = v
-					self.artwokerPath[Asset.FRONT.value] = v
-					self.artwokerPath[Asset.SIDE.value] = v
-					self.artwokerPath[Asset.BACK.value] = v
+					self.artworkPath[Asset.BOX2D.value] = v
+					self.artworkPath[Asset.BOX3D.value] = v
+					self.artworkPath[Asset.FRONT.value] = v
+					self.artworkPath[Asset.SIDE.value] = v
+					self.artworkPath[Asset.BACK.value] = v
 				if p == 'marquee':
-					self.artwokerPath[Asset.MARQUEE.value] = v
+					self.artworkPath[Asset.MARQUEE.value] = v
 				if p == 'snap':
-					self.artwokerPath[Asset.SCREENSHOT.value] = v
-					self.artwokerPath[Asset.TITLE.value] = v
-					self.artwokerPath[Asset.VIDEO.value] = v
+					self.artworkPath[Asset.SCREENSHOT.value] = v
+					self.artworkPath[Asset.TITLE.value] = v
+					self.artworkPath[Asset.VIDEO.value] = v
 				if p == 'wheel':
-					self.artwokerPath[Asset.WHEEL.value] = v
+					self.artworkPath[Asset.WHEEL.value] = v
 
-		# self.artwokerPath = os.path.dirname(os.path.commonpath(artwork_path))
+		# self.artworkPath = os.path.dirname(os.path.commonpath(artwork_path))
 		# If no common path was found, fallback to another value
-		# if self.artwokerPath and os.path.basename(self.artwokerPath) == self.system:
-		# 	self.artwokerPath = self.scraperdir[0:len(self.scraperdir) - len(self.system)]
+		# if self.artworkPath and os.path.basename(self.artworkPath) == self.system:
+		# 	self.artworkPath = self.scraperdir[0:len(self.scraperdir) - len(self.system)]
 
 	def splitParamFromValue(self, line: str) -> list:
 		i = 0

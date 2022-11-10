@@ -30,21 +30,18 @@ class ScreenScraper(Scraper):
 
     def queryGameInfo(self, rom, system = None):
         jsData = dict()
+        req_trad = {'crc': rom.crc, 'md5': rom.md5, 'romnom': rom.romfile}
         if not system in ['mame', 'arcade', 'mame-libretro', 'mame4all', 'fba']:
-            for req_type in [ 'crc', 'md5', 'romnom']:
-                if req_type == 'crc': req_val = rom.crc
-                if req_type == 'md5': req_val = rom.md5
-                if req_type == 'romnom': req_val = rom.romfile
-                ret = self.download('jeuInfos.php', {req_type: req_val})
+            for req_type, req_value in req_trad.items():
+                ret = self.download('jeuInfos.php', {req_type: req_value})
+                logging.debug('%s: URL returned status code %s using %s', rom.romfile, str(ret['status_code']), req_type)
                 if ret['status_code'] == 200:
-                    logging.debug('%s: URL returned status code %s using %s', rom.romfile, str(ret['status_code']), req_type)
                     jsData = json.loads(ret['content'])
                     break
-                else:
-                    logging.debug('%s: URL returned status code %s using %s', rom.romfile, str(ret['status_code']), req_type)
         else:
             # Force system id to 75 (MAME/arcade)
             ret = self.download('jeuInfos.php', {'systemid': 75, 'romnom': rom.romfile})
+            logging.debug('%s: URL returned status code %s for system %s', rom.romfile, str(ret['status_code']), system)
             if ret['status_code'] == 200:
                 jsData = json.loads(ret['content'])
         return jsData
@@ -127,7 +124,7 @@ class ScreenScraper(Scraper):
                         filteredMedias[mediaIndex] = m
         return list(filteredMedias.values())
 
-    def getGameInfo(self, rom, system = None):
+    def getGameInfo(self, rom, system = None) -> GameInfo | None:
         # Now Let's reorganize this
         jsData = self.queryGameInfo(rom, system)
         if not (jsData and jsData['response'] and jsData['response']['jeu']):
