@@ -40,7 +40,7 @@ class ScreenScraper(Scraper):
                     break
         else:
             # Force system id to 75 (MAME/arcade)
-            ret = self.download('jeuInfos.php', {'systemid': 75, 'romnom': rom.romfile})
+            ret = self.download('jeuInfos.php', {'systemid': '75', 'romnom': rom.romfile})
             logging.debug('%s: URL returned status code %s for system %s', rom.romfile, str(ret['status_code']), system)
             if ret['status_code'] == 200:
                 jsData = json.loads(ret['content'])

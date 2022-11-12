@@ -10,6 +10,7 @@ import requests
 from dotenv import load_dotenv
 
 from classes.rom import Rom
+from classes.gameinfo import Asset
 from scrapers.hfsdb import HFSDB
 from scrapers.scraper import Scraper
 from scrapers.screenscraper import ScreenScraper
@@ -53,6 +54,9 @@ def test_screenscraper():
     rom_info = my_sscraper.getGameInfo(sonic2_rom, 'megadrive')
     if rom_info:
         logging.debug(rom_info.filterOnLang('fr'))
+        logging.info(rom_info.getAssetMedia(Asset.TITLE))
+        my_sscraper.downloadGameAsset(rom_info.getAssetMedia(Asset.TITLE), 'tests/sonic2_title.' + rom_info.getAssetMedia(Asset.TITLE).extension)
+
     # print(my_sscraper.download('ssuserInfos.php'))
     # print(my_sscraper.downloadToFile('tests/sonic2_ss.json', 'jeuInfos.php', {'crc': '24ab4c3a'}))
     # my_sscraper.getPlatforms()
@@ -82,6 +86,7 @@ def test_hfsdb():
         logging.debug("Filtered som:\n%s", rom_info.filterOnLang('fr'))
     # my_hfsdb.getPlatforms()
     my_hfsdb.downloadToFile('tests/sonic2_hfsdb.json', 'games', {'medias__md5': sonic2_rom.md5sum})
+
     for rom_file, system, url in zips:
         param = ''
         rom = Rom('tests/' + rom_file)
@@ -93,6 +98,7 @@ def test_hfsdb():
             param = {'medias__md5': rom.md5}
         with open(json_filename, 'w', encoding="utf8") as f:
             json.dump(json.loads(my_hfsdb.download('games', param)['content']), f, indent=4)
+        my_hfsdb.downloadGameAsset(rom_info.getAssetMedia(Asset.VIDEO), rom.romname + '_title.' + rom_info.getAssetMedia(Asset.VIDEO).extension)
 
 LOGGING_LEVEL = logging.DEBUG
 if LOGGING_LEVEL == logging.DEBUG:
@@ -106,7 +112,7 @@ if not load_dotenv(verbose=True):
 
 download_zips()
 test_scraper()
-test_screenscraper()
+# test_screenscraper()
 # test_tgdb()
 test_hfsdb()
 

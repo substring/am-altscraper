@@ -103,7 +103,7 @@ class GameInfo:
         return filteredMedias
 
     # Returns a dict with all data filtered on the language
-    def filterOnLang(self, lang: str):
+    def filterOnLang(self, lang: str) -> dict:
         if lang not in Regions:
             raise ValueError("Language '{}' is not in {}".format(lang, Regions))
         filteredGameInfo = dict()
@@ -119,3 +119,9 @@ class GameInfo:
         filteredGameInfo['category'] = self.filterDictOnLang(lang, self.category)
         filteredGameInfo['medias'] = self.filterMediaOnLang(lang, self.medias)
         return filteredGameInfo
+
+    def getAssetMedia(self, assetType: Asset) -> Media | None:
+        for media in self.medias:
+            if media.type == assetType.value:
+                return media
+        return None
