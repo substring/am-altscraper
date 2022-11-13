@@ -6,19 +6,19 @@ import zipfile
 
 class Rom:
 	# rom must be a fullpath to an existing rom file
-	def __init__(self, rom: str, crc = None, filecrc = None):
+	def __init__(self, rom: str, crc = '', filecrc = ''):
 		if not os.path.exists(rom):
 			raise Exception(rom + " doesn't exist")
 		self.rompathname = rom
 		self.rompath = os.path.dirname(rom)
 		self.romfile = os.path.basename(rom)
-		self.romname = os.path.splitext(rom)[0]
+		self.romname = os.path.splitext(self.romfile)[0]
 		self.romext = os.path.splitext(rom)[1][1:]
 		self.crc = crc
 		self.md5 = None
 		self.sha1 = None
 		self.filecrc = filecrc
-		self.archiveContent = None
+		self.archiveContent = []
 		self.isoExtensions = ['iso', 'cue', 'chd']
 		self.getCRC()
 		self.getMD5()
@@ -30,7 +30,7 @@ class Rom:
 	def __str__(self):
 		return "Rom: {}\nSplit into {} / {} . {}\nHashes:\n  - CRC: {}\n  - MD5: {}\n  - SHA1: {}\nFile content:: {}".format(self.rompathname, self.rompath, self.romfile, self.romext, self.crc, self.md5, self.sha1, self.archiveContent)
 
-	def getCRC(self) -> str:
+	def getCRC(self) -> str |None:
 		if self.crc:
 			return self.crc
 		self.listArchive()
@@ -55,7 +55,7 @@ class Rom:
 				filesList.append({f.filename: f'{decimalCRC:x}'})
 		return filesList
 
-	def listArchiveFrom7z(self) -> str:
+	def listArchiveFrom7z(self) -> list:
 		filesList = []
 		with py7zr.SevenZipFile(self.rompathname, 'r') as romzip:
 			zipinfodata = romzip.list()
@@ -64,7 +64,7 @@ class Rom:
 				filesList.append({f.filename: f'{decimalCRC:x}'})
 		return filesList
 
-	def listArchive(self) -> list:
+	def listArchive(self) -> list | None:
 		if self.romext not in ['7z', 'zip']:
 			return None
 		if self.romext == 'zip':
@@ -98,7 +98,7 @@ class Rom:
 	def sha1sum(self, filename):
 		return hashlib.sha1(open(filename,'rb').read()).hexdigest()
 
-	def getMD5orSHA1(self, hashType) -> str:
+	def getMD5orSHA1(self, hashType) -> str | None:
 		rom = ''
 		if hashType not in ['md5', 'sha1']:
 			return None

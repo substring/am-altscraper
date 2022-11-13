@@ -1,10 +1,15 @@
+import errno
 import os
-import subprocess
+import logging
+# import subprocess
 
 class FrontEnd():
     def __init__(self, name = '', cfgFile = '', romsDir = '', system = '', extensions = [], artworkPath = dict()):
         self.name = name # the frontend name
         self.configurationFile = cfgFile # the configuration file to parse
+        if self.configurationFile and not os.path.isfile(self.configurationFile):
+            logging.error("The emulator configuration file {} doesn't exist".format(self.configurationFile))
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.configurationFile)
         if romsDir:
             if isinstance(romsDir, list):
                 self.romsDir = romsDir # where roms are located. In case, frontends already store that value

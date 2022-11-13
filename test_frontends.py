@@ -9,7 +9,7 @@ from frontends.frontend import FrontEnd
 
 def test_frontend():
     """Test the FrontEnd base class"""
-    my_fe = FrontEnd(name='Test FE', system='Megadrive', cfgFile='test/MAME.cfg', romsDir='/roms',
+    my_fe = FrontEnd(name='Test FE', system='Megadrive', cfgFile='tests/MAME.cfg', romsDir='/roms',
         extensions=['zip', '7z'], artworkPath='/medias')
     logging.debug("\n%s", my_fe)
 

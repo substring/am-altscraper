@@ -74,6 +74,7 @@ class Scraper(object):
         if not data or data['status_code'] != 200:
             return None
         with open(destinationFile,'wb') as f:
+            logging.debug("Writing %s", destinationFile)
             f.write(data['content'])
         
     def downloadToFile(self, destinationFile:str, endpoint: str, params: dict = None) -> bool:

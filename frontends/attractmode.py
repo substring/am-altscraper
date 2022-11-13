@@ -11,9 +11,6 @@ class AttractMode(FrontEnd):
 
 	def readEmulatorConfig(self):
 		artworkPaths = dict()
-		if not os.path.isfile(self.configurationFile):
-			logging.error("The emulator configuration file {} doesn't exist".format(self.configurationFile))
-			exit(1)
 		with open(self.configurationFile) as f:
 			lines = [line.rstrip() for line in f]
 		for l in lines:

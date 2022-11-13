@@ -101,7 +101,7 @@ class ScreenScraper(Scraper):
             mediaData.extension = m['format']
             if 'region' in m:
                 mediaData.region = m['region']
-            logging.debug(mediaData)
+            # logging.debug(mediaData)
             medias.append(mediaData)
         return medias
 
@@ -109,23 +109,24 @@ class ScreenScraper(Scraper):
         filteredMedias = dict()
         for m in medias:
             mediaIndex = Asset(m.type).value
-            logging.debug(mediaIndex)
+            # logging.debug(mediaIndex)
             if not isinstance(SSMedia[mediaIndex], list):
                 filteredMedias[mediaIndex] = m
-                logging.debug(m.scraperMediaType)
+                # logging.debug(m.scraperMediaType)
                 continue
             for ssm in SSMedia[mediaIndex]:
                 if mediaIndex not in filteredMedias:
                     filteredMedias[mediaIndex] = m
                 else:
                     # Here is the real filtering deal
-                    logging.debug(SSMedia[mediaIndex].index(m.scraperMediaType))
+                    # logging.debug(SSMedia[mediaIndex].index(m.scraperMediaType))
                     if SSMedia[mediaIndex].index(m.scraperMediaType) < SSMedia[mediaIndex].index(filteredMedias[mediaIndex].scraperMediaType):
                         filteredMedias[mediaIndex] = m
         return list(filteredMedias.values())
 
     def getGameInfo(self, rom, system = None) -> GameInfo | None:
         # Now Let's reorganize this
+        logging.info("Getting rom information...")
         jsData = self.queryGameInfo(rom, system)
         if not (jsData and jsData['response'] and jsData['response']['jeu']):
             logging.warning('Got no data for rom')
@@ -136,10 +137,8 @@ class ScreenScraper(Scraper):
             myGameInfo.publisher = gameData['editeur']['text']
         if 'noms' in gameData:
             myGameInfo.title = self.regiontextListToDict(gameData['noms'])
-            print(myGameInfo.title)
         if 'dates' in gameData:
             myGameInfo.date = self.regiontextListToDict(gameData['dates'])
-            print(myGameInfo.date)
         if 'genres' in gameData:
             myGameInfo.category = self.categoryDataToDict(gameData['genres'])
         if 'synopsis' in gameData:

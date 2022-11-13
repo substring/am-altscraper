@@ -69,7 +69,7 @@ class GameInfo:
             if k in dataDict:
                 return dataDict[k]
         # We should never fall here
-        print(dataDict)
+        logging.debug(dataDict)
         raise ValueError("Data has no language {}".format(lang))
 
     def mediasHaveAsset(self, medias, asset):
@@ -80,7 +80,7 @@ class GameInfo:
     def filterMediaOnLang(self, lang, medias):
         filteredMedias = list()
         for m in medias:
-            print(m)
+            # logging.debug(m)
             if m.region == lang:
                 filteredMedias.append(m)
         # Not all media exist for the required language, so let's look for a default one
@@ -124,4 +124,5 @@ class GameInfo:
         for media in self.medias:
             if media.type == assetType.value:
                 return media
+        logging.warning('Game has no such asset %s', assetType)
         return None
