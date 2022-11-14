@@ -8,6 +8,7 @@ class AttractMode(FrontEnd):
 		super().__init__(name='AttractMode', cfgFile=cfgFile, romsDir=romsDir, system=system, extensions=extensions, artworkPath=artworkPath)
 		if self.configurationFile:
 			self.readEmulatorConfig()
+			logging.debug(self.artworkPath)
 
 	def readEmulatorConfig(self):
 		artworkPaths = dict()

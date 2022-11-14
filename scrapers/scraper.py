@@ -68,11 +68,17 @@ class Scraper(object):
             logging.error("An error ocurred when downloading from an URL")
         return None
 
-    def downloadToFileFromUrl(self, url: str, destinationFile: str):
+    def downloadToFileFromUrl(self, url: str, destinationFile: str, force_mkdir: bool=False):
         """Download to a file using an URL"""
+        logging.debug('Trying to download to "%s"' % destinationFile)
         data = self.downloadFromUrl(url)
         if not data or data['status_code'] != 200:
             return None
+        if force_mkdir:
+            dest_path = os.path.dirname(destinationFile)
+            if not os.path.exists(dest_path):
+                logging.info("%s doesn't exist, creating it", dest_path)
+                os.makedirs(dest_path)
         with open(destinationFile,'wb') as f:
             logging.debug("Writing %s", destinationFile)
             f.write(data['content'])
@@ -90,9 +96,9 @@ class Scraper(object):
             f.write(httpdata['content'])
         return True
 
-    def downloadGameAsset(self, media: Media, destination: str):
+    def downloadGameAsset(self, media: Media, destination: str, force_mkdir: bool=False):
         """Download a media asset to disk"""
-        self.downloadToFileFromUrl(media.url, destination)
+        self.downloadToFileFromUrl(media.url, destination, force_mkdir)
 
     # The following methods MUST be implemented in the child class
     # Gets the complete data for a game and fill the GameInfo object
