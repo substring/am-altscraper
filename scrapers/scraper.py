@@ -1,8 +1,10 @@
 import json
 import logging
+import math
 import os
 import requests
 import sys
+import time
 from classes.gameinfo import GameInfo, Asset, Media
 
 
@@ -52,19 +54,37 @@ class Scraper(object):
                     isFirstParam = False
                 else:
                     targetUrl += '&{}={}'.format(k, v)
-        # print(targetUrl)
+        # logging.debug(targetUrl)
         return self.downloadFromUrl(targetUrl)
 
-    def downloadFromUrl(self, targetUrl: str):
+    def downloadFromUrl(self, targetUrl: str, allow_retry: bool = True):
         """Low level downloading using an URL"""
-        try:
+        pause_time = 0
+        # try:
+        if pause_time == 0:
             if self.session:
                 r = self.session.get(targetUrl)
             else:
                 r = requests.get(targetUrl)
-            # return {'status_code': r.status_code, 'content': r.content, 'text': r.text}
+            # logging.debug(r.headers)
+            # if 'Retry-After' in r.headers:
+            #     pause_time = float(r.headers["Retry-After"])
+            #     logging.debug(r.headers["Retry-After"])
+            if 'X-Ratelimit-Retryafter' in r.headers:
+                value = r.headers["X-Ratelimit-Retryafter"]
+                if value[-2:] == 'ms':
+                    pause_time = 1
+                else:
+                    pause_time = math.ceil(float(value[:-1]))
+            if not pause_time == 0:
+                pause_time += 2
+                logging.warn('The server wants us to go easy on requests. Pausing for %d seconds not to spam the server', pause_time)
+                time.sleep(pause_time)
+                if allow_retry:
+                    logging.info('Retrying the query %s', targetUrl)
+                    return self.download(targetUrl, False)
             return {'status_code': r.status_code, 'content': r.content}
-        except:
+        # except:
             logging.error("An error ocurred when downloading from an URL")
         return None
 
@@ -98,6 +118,7 @@ class Scraper(object):
 
     def downloadGameAsset(self, media: Media, destination: str, force_mkdir: bool=False):
         """Download a media asset to disk"""
+        logging.info('Downloading media: %s', Asset(media.type).name)
         self.downloadToFileFromUrl(media.url, destination, force_mkdir)
 
     # The following methods MUST be implemented in the child class

@@ -66,11 +66,14 @@ class HFSDB(Scraper):
         jsData = []
         if not system in ['mame', 'arcade', 'mame-libretro', 'mame4all', 'fba']:
             ret = self.download('games', {'medias__md5': rom.md5})
-            if ret['status_code'] == 200:
+            if ret and ret['status_code'] == 200:
                 logging.debug('%s: URL returned status code %s', rom.romfile, str(ret['status_code']))
                 jsData = json.loads(ret['content'])
-            else:
+            elif ret:
                 logging.error('%s: URL returned status code %s', rom.romfile, str(ret['status_code']))
+                # logging.debug(ret)
+            else:
+                logging.error("%s: server didn't return anything", rom.romfile)
         else:
             ret = self.download('games', {'medias__description': rom.romname})
             if ret['status_code'] == 200:
@@ -101,7 +104,8 @@ class HFSDB(Scraper):
             if metadata[0]['value'] in cover2dtype:
                 return cover2dtype[metadata[0]['value']]
         if mediaType == 'screenshot':
-            if metadata[0]['value'] in screenshottype:
+            # logging.debug(metadata)
+            if metadata and metadata[0]['value'] in screenshottype:
                 return screenshottype[metadata[0]['value']]
         return HFSMedia.index(mediaType)
 
@@ -117,15 +121,17 @@ class HFSDB(Scraper):
                 gameMedia.hashes = {'crc32': i['crc32'], 'md5': i['md5'], 'sha1': i['sha1']}
                 gameMedia.url = i['file']
                 gameMedia.extension = i['extension']
-                gameMedia.region = HFSRegions[i['region']]
+                gameMedia.region = HFSRegions[i['region']] if i['region'] in HFSRegions else i['region']
                 gameMedia.scraperMediaType = i['type']
                 gameMediaList.append(gameMedia)
         return gameMediaList
 
     def getGameInfo(self, rom, system = None) -> GameInfo | None:
         jsData = self.queryGameInfo(rom, system)
-        if not jsData:
+        # logging.debug(jsData)
+        if not jsData or 'count' not in jsData:
             logging.warning('Got no data for rom %s', rom.rompathname)
+            return None
         if jsData['count'] > 1:
             logging.warning("HFSDB didn't return a single rom info for %s", rom.rompathname)
             return None
