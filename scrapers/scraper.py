@@ -39,7 +39,7 @@ class Scraper(object):
             os.mkdir(cacheDir)
         return cacheDir
 
-    def download(self, endpoint: str, params: dict[str, str] = []) -> dict[str, str]:
+    def download(self, endpoint: str, params: dict[str, str] = {}) -> dict:
         """Basic downloading using endpoints and parameters"""
         # First build up the url with trha parameters
         isFirstParam = True
@@ -57,7 +57,7 @@ class Scraper(object):
         # logging.debug(targetUrl)
         return self.downloadFromUrl(targetUrl)
 
-    def downloadFromUrl(self, targetUrl: str, allow_retry: bool = True):
+    def downloadFromUrl(self, targetUrl: str, allow_retry: bool = True) -> dict:
         """Low level downloading using an URL"""
         pause_time = 0
         # try:
@@ -67,30 +67,32 @@ class Scraper(object):
             else:
                 r = requests.get(targetUrl)
             # logging.debug(r.headers)
-            # if 'Retry-After' in r.headers:
-            #     pause_time = float(r.headers["Retry-After"])
-            #     logging.debug(r.headers["Retry-After"])
-            if 'X-Ratelimit-Retryafter' in r.headers:
+            if 'Retry-After' in r.headers:
+                pause_time = float(r.headers["Retry-After"])
+            elif 'X-Ratelimit-Retryafter' in r.headers:
                 value = r.headers["X-Ratelimit-Retryafter"]
                 if value[-2:] == 'ms':
                     pause_time = 1
                 else:
                     pause_time = math.ceil(float(value[:-1]))
-            if not pause_time == 0:
-                pause_time += 2
+            if pause_time > 0:
+                # pause_time += 1
                 logging.warn('The server wants us to go easy on requests. Pausing for %d seconds not to spam the server', pause_time)
                 time.sleep(pause_time)
                 if allow_retry:
-                    logging.info('Retrying the query %s', targetUrl)
-                    return self.download(targetUrl, False)
+                    logging.info('Retrying the query')
+                    return self.downloadFromUrl(targetUrl, False)
             return {'status_code': r.status_code, 'content': r.content}
         # except:
             logging.error("An error ocurred when downloading from an URL")
-        return None
+        return {}
 
-    def downloadToFileFromUrl(self, url: str, destinationFile: str, force_mkdir: bool=False):
+    def downloadToFileFromUrl(self, url: str, destinationFile: str, force_mkdir: bool=False, force_download=False):
         """Download to a file using an URL"""
         logging.debug('Trying to download to "%s"' % destinationFile)
+        if os.path.exists(destinationFile) and not force_download:
+            logging.info('%s already exists, skipping download', destinationFile)
+            return
         data = self.downloadFromUrl(url)
         if not data or data['status_code'] != 200:
             return None
@@ -103,7 +105,7 @@ class Scraper(object):
             logging.debug("Writing %s", destinationFile)
             f.write(data['content'])
         
-    def downloadToFile(self, destinationFile:str, endpoint: str, params: dict = None) -> bool:
+    def downloadToFile(self, destinationFile:str, endpoint: str, params: dict = {}) -> bool:
         """Downloads a file to disk
         If you need to retrieve json or xml, don't use that
         """
@@ -116,14 +118,14 @@ class Scraper(object):
             f.write(httpdata['content'])
         return True
 
-    def downloadGameAsset(self, media: Media, destination: str, force_mkdir: bool=False):
+    def downloadGameAsset(self, media: Media, destination: str, force_mkdir: bool=False, overwrite: bool=False):
         """Download a media asset to disk"""
         logging.info('Downloading media: %s', Asset(media.type).name)
-        self.downloadToFileFromUrl(media.url, destination, force_mkdir)
+        self.downloadToFileFromUrl(media.url, destination, force_mkdir, overwrite)
 
     # The following methods MUST be implemented in the child class
     # Gets the complete data for a game and fill the GameInfo object
-    def getGameInfo(self, rom) -> GameInfo:
+    def getGameInfo(self, rom, system) -> GameInfo:
         raise NotImplementedError()
     # Get the platforms + their ids from the scraping site. Up to the child
     # to call it, since the user may want to force a refresh from cmdline

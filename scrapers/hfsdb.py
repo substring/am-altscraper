@@ -66,21 +66,20 @@ class HFSDB(Scraper):
         jsData = []
         if not system in ['mame', 'arcade', 'mame-libretro', 'mame4all', 'fba']:
             ret = self.download('games', {'medias__md5': rom.md5})
-            if ret and ret['status_code'] == 200:
-                logging.debug('%s: URL returned status code %s', rom.romfile, str(ret['status_code']))
-                jsData = json.loads(ret['content'])
-            elif ret:
-                logging.error('%s: URL returned status code %s', rom.romfile, str(ret['status_code']))
-                # logging.debug(ret)
-            else:
-                logging.error("%s: server didn't return anything", rom.romfile)
         else:
             ret = self.download('games', {'medias__description': rom.romname})
-            if ret['status_code'] == 200:
-                logging.debug('%s: URL returned status code %s', rom.romfile, str(ret['status_code']))
-                jsData = json.loads(ret['content'])
-            else:
-                logging.error('%s: URL returned status code %s', rom.romfile, str(ret['status_code']))
+        if ret and ret['status_code'] == 200:
+            logging.debug('%s: URL returned status code %s', rom.romfile, str(ret['status_code']))
+            jsData = json.loads(ret['content'])
+        # elif ret and ret['status_code'] == 404:
+        #     logging.debug(' ***** Got 404, retrying *****')
+        #     return self.queryGameInfo(rom, system)
+        elif ret:
+            logging.error('%s: URL returned status code %s', rom.romfile, str(ret['status_code']))
+            logging.debug(jsData)
+        else:
+            logging.error("%s: server didn't return anything", rom.romfile)
+    
         return jsData
 
     def filterDataByLang(self, key: str, jsData):

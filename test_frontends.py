@@ -16,6 +16,8 @@ def test_frontend():
 def test_attractmode():
     """Test the AttractMode Frontend child class"""
     my_fe = AttractMode(system='arcade', cfgFile='tests/MAME.cfg')
+    rom_list = my_fe.find_roms('tests/MAME.txt')
+    logging.info("Foudn roms: %s", rom_list)
     logging.debug("\n%s", my_fe)
 
 LOGGING_LEVEL = logging.DEBUG
@@ -25,5 +27,5 @@ if LOGGING_LEVEL == logging.DEBUG:
 else:
     logging.basicConfig(stream=sys.stdout, level=LOGGING_LEVEL)
 
-test_frontend()
+#test_frontend()
 test_attractmode()

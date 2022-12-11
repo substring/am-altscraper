@@ -4,6 +4,7 @@ import logging
 #import requests
 #import sys
 from enum import IntEnum, auto
+from typing import TypedDict
 
 # Listed in descending search order for scrapers that don't support regions
 # or when the expected language doesn't exist
@@ -42,6 +43,18 @@ class Media:
     def __repr__(self):
         return "Media:\n  Type: {}\n  URL: {}\n  Extension: {}\n  Region: {}\n  Hashes: {}\n  Media type: {}\n".format(Asset(self.type).name, self.url, self.extension, self.region, self.hashes, self.scraperMediaType)
 
+class FilteredGameInfo(TypedDict):
+    cloneof: str
+    developer: str
+    publisher: str
+    players: str # Keep it as str, some scrapers may report 1/2
+    resolution: str
+    rotation: int
+    title: str
+    description: str
+    date: str
+    category: str
+    medias: list[Media]
 
 class GameInfo:
     def __init__(self):
@@ -62,6 +75,8 @@ class GameInfo:
         return "GameInfo:\nTitle:{}\nDescription: {}\nDate: {}\nCategory:{}\nCloneOf: {}\nMedia: {}\n".format(self.title, self.description, self.date, self.category, self.cloneof, str(self.medias))
 
     def filterDictOnLang(self, lang, dataDict):
+        if not dataDict:
+            return None
         if lang in dataDict:
             return dataDict[lang]
         # lang doesn't exist, Regions was organised as an order of default values
@@ -77,7 +92,7 @@ class GameInfo:
             if m.type == asset:
                 return True
 
-    def filterMediaOnLang(self, lang, medias):
+    def filterMediaOnLang(self, lang, medias) -> list[Media]:
         filteredMedias = list()
         for m in medias:
             # logging.debug(m)
@@ -103,22 +118,33 @@ class GameInfo:
         return filteredMedias
 
     # Returns a dict with all data filtered on the language
-    def filterOnLang(self, lang: str) -> dict:
+    def filterOnLang(self, lang: str) -> FilteredGameInfo:
         if lang not in Regions:
             raise ValueError("Language '{}' is not in {}".format(lang, Regions))
-        filteredGameInfo = dict()
-        filteredGameInfo['cloneof'] = self.cloneof
-        filteredGameInfo['developer'] = self.developer
-        filteredGameInfo['publisher'] = self.publisher
-        filteredGameInfo['players'] = self.players
-        filteredGameInfo['resolution'] = self.resolution
-        filteredGameInfo['rotation'] = self.rotation
-        filteredGameInfo['title'] = self.filterDictOnLang(lang, self.title)
-        filteredGameInfo['description'] = self.filterDictOnLang(lang, self.description)
-        filteredGameInfo['date'] = self.filterDictOnLang(lang, self.date)
-        filteredGameInfo['category'] = self.filterDictOnLang(lang, self.category)
-        filteredGameInfo['medias'] = self.filterMediaOnLang(lang, self.medias)
-        return filteredGameInfo
+        return FilteredGameInfo(cloneof= self.cloneof,
+            developer=self.developer,
+            publisher=self.publisher,
+            players=self.players,
+            resolution=self.resolution,
+            rotation=int(self.rotation),
+            title=self.filterDictOnLang(lang, self.title),
+            description=self.filterDictOnLang(lang, self.description),
+            date=self.filterDictOnLang(lang, self.date),
+            category=self.filterDictOnLang(lang, self.category),
+            medias=self.filterMediaOnLang(lang, self.medias))
+        # filteredGameInfo = dict()
+        # filteredGameInfo['cloneof'] = self.cloneof
+        # filteredGameInfo['developer'] = self.developer
+        # filteredGameInfo['publisher'] = self.publisher
+        # filteredGameInfo['players'] = self.players
+        # filteredGameInfo['resolution'] = self.resolution
+        # filteredGameInfo['rotation'] = self.rotation
+        # filteredGameInfo['title'] = self.filterDictOnLang(lang, self.title)
+        # filteredGameInfo['description'] = self.filterDictOnLang(lang, self.description)
+        # filteredGameInfo['date'] = self.filterDictOnLang(lang, self.date)
+        # filteredGameInfo['category'] = self.filterDictOnLang(lang, self.category)
+        # filteredGameInfo['medias'] = self.filterMediaOnLang(lang, self.medias)
+        # return filteredGameInfo
 
     def getAssetMedia(self, assetType: Asset) -> Media | None:
         for media in self.medias:
